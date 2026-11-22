@@ -154,7 +154,11 @@ class ConsentGate_Logs {
 	public static function stats( int $days = 30 ): array {
 		global $wpdb;
 
-		$since = gmdate( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
+		// Match created_at (stored via current_time( 'mysql' )) using the site timezone.
+		$since = wp_date( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
+		if ( ! is_string( $since ) || '' === $since ) {
+			$since = gmdate( 'Y-m-d H:i:s', current_time( 'timestamp' ) - ( $days * DAY_IN_SECONDS ) );
+		}
 
 		$base = array(
 			'total'      => 0,
@@ -236,6 +240,19 @@ class ConsentGate_Logs {
 	}
 
 	/**
+	 * Neutralize CSV formula injection (=, +, -, @, tab, CR).
+	 *
+	 * @param string $field Cell value.
+	 */
+	private static function csv_neutralize( string $field ): string {
+		if ( '' !== $field && preg_match( '/^[=+\-@\t\r]/', $field ) ) {
+			return "'" . $field;
+		}
+
+		return $field;
+	}
+
+	/**
 	 * One CSV line.
 	 *
 	 * @param array<int, mixed> $fields Fields.
@@ -243,7 +260,7 @@ class ConsentGate_Logs {
 	private static function csv_line( array $fields ): string {
 		$out = array();
 		foreach ( $fields as $field ) {
-			$field = (string) $field;
+			$field = self::csv_neutralize( (string) $field );
 			if ( false !== strpbrk( $field, "\",\n\r" ) ) {
 				$out[] = '"' . str_replace( '"', '""', $field ) . '"';
 			} else {
@@ -261,7 +278,11 @@ class ConsentGate_Logs {
 		global $wpdb;
 
 		$days = max( 30, min( 2555, (int) ConsentGate_Options::get( 'retention_days', 365 ) ) );
-		$cut  = gmdate( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
+		// Match created_at (stored via current_time( 'mysql' )) using the site timezone.
+		$cut = wp_date( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
+		if ( ! is_string( $cut ) || '' === $cut ) {
+			$cut = gmdate( 'Y-m-d H:i:s', current_time( 'timestamp' ) - ( $days * DAY_IN_SECONDS ) );
+		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$wpdb->query(

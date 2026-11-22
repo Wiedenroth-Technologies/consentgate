@@ -4,7 +4,7 @@ Tags: cookie consent, cookie banner, cookie notice, GDPR, dsgvo
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,8 +119,22 @@ If the scan has stored Google measurement IDs, the plugin loads the Google tag s
 
 == Changelog ==
 
+= 1.0.2 =
+* Secured the site scan so blocking cannot be bypassed with a forged scanner identity, and scan responses are not cached.
+* Known catalog services are blocked even when they were not present during the last scan.
+* Hardened CSV log export against spreadsheet formula injection.
+* Limited plugin asset detection to this plugin's own URLs.
+* Used a safer HTTP request helper when reading the privacy policy.
+* Aligned consent log date boundaries with the WordPress timezone.
+* Aligned the plugin header name with the readme title for WordPress.org.
+
 = 1.0.1 =
 * The ConsentGate note in the banner links to https://wiedenroth.tech/software/consentgate.
 
 = 1.0.0 =
 * Initial release
+
+== Upgrade Notice ==
+
+= 1.0.2 =
+Security and privacy hardening for the site scan and catalog blocking. Please update promptly.

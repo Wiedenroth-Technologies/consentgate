@@ -22,6 +22,7 @@ class ConsentGate_Frontend {
 	 * @param ConsentGate_Loader $loader Loader.
 	 */
 	public function register( ConsentGate_Loader $loader ): void {
+		$loader->add_action( 'init', $this, 'maybe_mark_scan_request', 0 );
 		$loader->add_action( 'wp_head', $this, 'print_boot', 0 );
 		$loader->add_action( 'wp_enqueue_scripts', $this, 'enqueue', 100 );
 		$loader->add_action( 'template_redirect', $this, 'start_buffer', 0 );
@@ -30,6 +31,13 @@ class ConsentGate_Frontend {
 		$loader->add_filter( 'widget_text', $this, 'gate_embeds', 20 );
 		$loader->add_filter( 'widget_block_content', $this, 'gate_embeds', 20 );
 		$loader->add_filter( 'render_block', $this, 'gate_embeds', 20 );
+	}
+
+	/**
+	 * Detect authenticated scan requests early so cache plugins see DONOTCACHEPAGE.
+	 */
+	public function maybe_mark_scan_request(): void {
+		self::is_scan_request();
 	}
 
 	/**
@@ -311,21 +319,112 @@ class ConsentGate_Frontend {
 	}
 
 	/**
-	 * Plugin assets stay loaded. Matches the directory slug and the previous folder name.
+	 * Plugin assets stay loaded. Only URLs under this plugin's own base URL count.
 	 *
 	 * @param string $url Asset URL.
 	 */
 	private static function is_plugin_asset( string $url ): bool {
-		return str_contains( $url, '/wiedenroth-technologies-consentgate/' ) || str_contains( $url, '/consentgate/' );
+		if ( '' === $url ) {
+			return false;
+		}
+
+		$base = CONSENTGATE_PLUGIN_URL;
+		if ( str_starts_with( $url, $base ) ) {
+			return true;
+		}
+
+		$base_path = wp_parse_url( $base, PHP_URL_PATH );
+		$url_path  = wp_parse_url( $url, PHP_URL_PATH );
+		if ( ! is_string( $base_path ) || '' === $base_path || ! is_string( $url_path ) ) {
+			return false;
+		}
+
+		return str_starts_with( $url_path, $base_path );
 	}
 
 	/**
-	 * Scanner fetches the homepage with a dedicated user agent.
+	 * Short-lived HMAC proof that this request is the plugin's own scanner.
+	 *
+	 * Token format: `{unix_ts}.{hmac_sha256}` over `{ts}|{site_host}` with wp_salt( 'auth' ).
+	 */
+	public static function create_scan_token(): string {
+		$ts      = (string) time();
+		$host    = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+		$payload = $ts . '|' . strtolower( $host );
+
+		return $ts . '.' . hash_hmac( 'sha256', $payload, wp_salt( 'auth' ) );
+	}
+
+	/**
+	 * Whether a scan token is valid (HMAC + freshness).
+	 *
+	 * @param string $token Token from header or query.
+	 */
+	public static function verify_scan_token( string $token ): bool {
+		if ( ! preg_match( '/^(\d+)\.([a-f0-9]{64})$/', $token, $m ) ) {
+			return false;
+		}
+
+		$ts = (int) $m[1];
+		if ( $ts < 1 || abs( time() - $ts ) > 10 * MINUTE_IN_SECONDS ) {
+			return false;
+		}
+
+		$host     = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+		$payload  = $m[1] . '|' . strtolower( $host );
+		$expected = hash_hmac( 'sha256', $payload, wp_salt( 'auth' ) );
+
+		return hash_equals( $expected, $m[2] );
+	}
+
+	/**
+	 * Prevent page caches from storing an unblocked scan response.
+	 */
+	private static function mark_scan_uncacheable(): void {
+		if ( ! headers_sent() ) {
+			nocache_headers();
+		}
+		/*
+		 * Cache plugins (WP Super Cache, W3TC, LiteSpeed, etc.) look for these
+		 * exact constant names. Prefixing them would break the bypass.
+		 */
+		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
+			define( 'DONOTCACHEPAGE', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound
+		}
+		if ( ! defined( 'DONOTCACHEOBJECT' ) ) {
+			define( 'DONOTCACHEOBJECT', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound
+		}
+		if ( ! defined( 'DONOTCACHEDB' ) ) {
+			define( 'DONOTCACHEDB', true ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedConstantFound
+		}
+	}
+
+	/**
+	 * True only when the request carries a valid short-lived scan HMAC.
+	 * A forged User-Agent alone is not enough.
 	 */
 	public static function is_scan_request(): bool {
-		$ua = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['HTTP_USER_AGENT'] ) ) : '';
+		static $cached = null;
+		if ( null !== $cached ) {
+			return $cached;
+		}
 
-		return str_starts_with( $ua, 'ConsentGateScan/' );
+		$token = '';
+		if ( isset( $_SERVER['HTTP_X_CONSENTGATE_SCAN'] ) ) {
+			$token = sanitize_text_field( wp_unslash( (string) $_SERVER['HTTP_X_CONSENTGATE_SCAN'] ) );
+		} elseif ( isset( $_GET['consentgate_scan'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- HMAC scan proof, not a form nonce.
+			$token = sanitize_text_field( wp_unslash( (string) $_GET['consentgate_scan'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- HMAC scan proof, not a form nonce.
+		}
+
+		if ( '' === $token || ! self::verify_scan_token( $token ) ) {
+			$cached = false;
+			return false;
+		}
+
+		self::mark_scan_uncacheable();
+		$cached = true;
+
+		return true;
 	}
 
 	/**

@@ -1247,7 +1247,10 @@ class ConsentGate_Scan {
 				'redirection' => 2,
 				'sslverify'   => true,
 				'headers'     => array(
-					'User-Agent' => 'ConsentGateScan/' . CONSENTGATE_VERSION,
+					'User-Agent'         => 'ConsentGateScan/' . CONSENTGATE_VERSION,
+					'X-ConsentGate-Scan' => ConsentGate_Frontend::create_scan_token(),
+					'Cache-Control'      => 'no-cache, no-store, must-revalidate',
+					'Pragma'             => 'no-cache',
 				),
 			)
 		);
