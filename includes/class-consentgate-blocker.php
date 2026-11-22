@@ -24,7 +24,7 @@ class ConsentGate_Blocker {
 	public static function rules(): array {
 		$policies = ConsentGate_Options::purpose_policies();
 		$by_key   = array();
-		foreach ( ConsentGate_Services::included() as $row ) {
+		foreach ( ConsentGate_Services::all() as $row ) {
 			$by_key[ ConsentGate_Catalog::canonical_key( (string) $row['service_key'] ) ] = $row;
 		}
 
@@ -37,12 +37,21 @@ class ConsentGate_Blocker {
 			if ( empty( $entry['hosts'] ) && empty( $entry['cookies'] ) ) {
 				continue;
 			}
-			$detected = $by_key[ $entry['key'] ] ?? null;
-			if ( ! $detected ) {
-				continue;
+
+			$stored = $by_key[ $entry['key'] ] ?? null;
+			if ( is_array( $stored ) ) {
+				// Respect an explicit exclusion from the services list.
+				if ( empty( $stored['included'] ) ) {
+					continue;
+				}
+				$category = ConsentGate_Options::sanitize_category( (string) $stored['category'] );
+				$policy   = ConsentGate_Options::sanitize_policy( (string) $stored['policy'] );
+			} else {
+				// Known catalog services stay blocked even if the last scan missed them.
+				$category = ConsentGate_Options::sanitize_category( (string) $entry['category'] );
+				$policy   = ConsentGate_Options::sanitize_policy( (string) $entry['policy'] );
 			}
-			$category = ConsentGate_Options::sanitize_category( (string) $detected['category'] );
-			$policy   = ConsentGate_Options::sanitize_policy( (string) $detected['policy'] );
+
 			if ( 'necessary' === $category || 'without_consent' === $policy ) {
 				continue;
 			}
@@ -59,6 +68,9 @@ class ConsentGate_Blocker {
 
 		foreach ( $by_key as $key => $service ) {
 			if ( self::has_rule( $rules, $key ) ) {
+				continue;
+			}
+			if ( empty( $service['included'] ) ) {
 				continue;
 			}
 			$category = ConsentGate_Options::sanitize_category( (string) $service['category'] );

@@ -148,7 +148,13 @@ class ConsentGate_Policy_Scan {
 			}
 		}
 
-		$res = wp_remote_get( $url, array( 'timeout' => 10, 'sslverify' => true ) );
+		$res = wp_safe_remote_get(
+			$url,
+			array(
+				'timeout'   => 10,
+				'sslverify' => true,
+			)
+		);
 		if ( is_wp_error( $res ) ) {
 			return '';
 		}
