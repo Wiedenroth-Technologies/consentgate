@@ -556,6 +556,55 @@
   min-height: 220px;
 }
 
+/*
+ * WordPress Core reserves the embed aspect ratio via
+ * .wp-block-embed__wrapper::before { padding-top: … }.
+ * ConsentGate inserts .cg-embed-wrap into that wrapper, so the Core
+ * spacer would stack on top of the placeholder (double height).
+ * Disable the spacer while the placeholder is present; after unwrap
+ * the Core ::before applies again for the live iframe.
+ */
+.wp-embed-responsive .wp-block-embed__wrapper:has(> .cg-embed-wrap)::before,
+.wp-embed-responsive .wp-block-embed__wrapper.cg-embed-host::before {
+  content: none !important;
+  display: none !important;
+  padding-top: 0 !important;
+}
+
+/* Placeholder owns the aspect ratio while blocked (Core classes on figure). */
+.wp-embed-responsive .wp-has-aspect-ratio .cg-embed-wrap {
+  min-height: 0;
+  height: auto;
+}
+
+.wp-embed-responsive .wp-embed-aspect-21-9 .cg-embed-wrap {
+  aspect-ratio: 21 / 9;
+}
+
+.wp-embed-responsive .wp-embed-aspect-18-9 .cg-embed-wrap {
+  aspect-ratio: 18 / 9;
+}
+
+.wp-embed-responsive .wp-embed-aspect-16-9 .cg-embed-wrap {
+  aspect-ratio: 16 / 9;
+}
+
+.wp-embed-responsive .wp-embed-aspect-4-3 .cg-embed-wrap {
+  aspect-ratio: 4 / 3;
+}
+
+.wp-embed-responsive .wp-embed-aspect-1-1 .cg-embed-wrap {
+  aspect-ratio: 1 / 1;
+}
+
+.wp-embed-responsive .wp-embed-aspect-9-16 .cg-embed-wrap {
+  aspect-ratio: 9 / 16;
+}
+
+.wp-embed-responsive .wp-embed-aspect-1-2 .cg-embed-wrap {
+  aspect-ratio: 1 / 2;
+}
+
 .cg-embed-wrap iframe[data-cg-blocked],
 .cg-embed-wrap img[data-cg-blocked] {
   position: absolute;

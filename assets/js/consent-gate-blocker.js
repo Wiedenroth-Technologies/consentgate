@@ -288,6 +288,18 @@
         nativeSetAttr.call(el, "data-cg-kind", key);
       }
 
+      function markEmbedHost(parent) {
+        if (!parent || !parent.classList) return;
+        if (parent.classList.contains("wp-block-embed__wrapper")) {
+          parent.classList.add("cg-embed-host");
+        }
+      }
+
+      function clearEmbedHost(parent) {
+        if (!parent || !parent.classList) return;
+        parent.classList.remove("cg-embed-host");
+      }
+
       function wrapMapsPlaceholder(iframe) {
         var src = iframe.getAttribute("data-cg-src") || "";
         var kind = placeholderKind(iframe, src);
@@ -297,10 +309,17 @@
         }
         var wrap = nativeCreate("div");
         wrap.className = "cg-embed-wrap";
-        var h = iframe.getAttribute("height") || iframe.style.height;
-        if (h) wrap.style.minHeight = /px|%|vh|rem/.test(String(h)) ? String(h) : String(h) + "px";
         var parent = iframe.parentNode;
         if (!parent) return;
+        // Inside Core responsive embeds, aspect-ratio CSS owns the height.
+        // An iframe height attribute must not force a fixed min-height.
+        var responsiveHost =
+          parent.classList && parent.classList.contains("wp-block-embed__wrapper");
+        var h = iframe.getAttribute("height") || iframe.style.height;
+        if (h && !responsiveHost) {
+          wrap.style.minHeight = /px|%|vh|rem/.test(String(h)) ? String(h) : String(h) + "px";
+        }
+        markEmbedHost(parent);
         parent.insertBefore(wrap, iframe);
         wrap.appendChild(iframe);
         var locale = embedLocale();
@@ -359,6 +378,7 @@
         if (!parent) return;
         parent.insertBefore(iframe, wrap);
         parent.removeChild(wrap);
+        clearEmbedHost(parent);
       }
 
       function linexoGate() {
