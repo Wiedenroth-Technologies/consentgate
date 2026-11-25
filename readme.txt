@@ -4,7 +4,7 @@ Tags: cookie consent, cookie banner, cookie notice, GDPR, dsgvo
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,9 @@ If the scan has stored Google measurement IDs, the plugin loads the Google tag s
 
 == Changelog ==
 
+= 1.0.3 =
+* Fixed a large empty space above the blocked YouTube placeholder in responsive WordPress embeds. The placeholder now uses the embed's aspect ratio.
+
 = 1.0.2 =
 * Secured the site scan so blocking cannot be bypassed with a forged scanner identity, and scan responses are not cached.
 * Known catalog services are blocked even when they were not present during the last scan.
@@ -135,6 +138,9 @@ If the scan has stored Google measurement IDs, the plugin loads the Google tag s
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.0.3 =
+Fixes the empty space above blocked video embeds.
 
 = 1.0.2 =
 Security and privacy hardening for the site scan and catalog blocking. Please update promptly.

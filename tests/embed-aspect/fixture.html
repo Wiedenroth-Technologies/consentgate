@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="de" class="wp-embed-responsive">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>ConsentGate embed aspect fixture</title>
+	<style>
+		/* Minimal WordPress Core responsive-embed rules (block-library). */
+		body {
+			margin: 0;
+			padding: 24px;
+			font-family: system-ui, sans-serif;
+			background: #f6f7f7;
+		}
+		.wp-block-embed {
+			margin: 0;
+			max-width: 640px;
+		}
+		.wp-block-embed__wrapper {
+			position: relative;
+		}
+		.wp-embed-responsive .wp-has-aspect-ratio .wp-block-embed__wrapper::before {
+			content: "";
+			display: block;
+			padding-top: 50%;
+		}
+		.wp-embed-responsive .wp-embed-aspect-21-9 .wp-block-embed__wrapper::before {
+			padding-top: 42.85%;
+		}
+		.wp-embed-responsive .wp-embed-aspect-18-9 .wp-block-embed__wrapper::before {
+			padding-top: 50%;
+		}
+		.wp-embed-responsive .wp-embed-aspect-16-9 .wp-block-embed__wrapper::before {
+			padding-top: 56.25%;
+		}
+		.wp-embed-responsive .wp-embed-aspect-4-3 .wp-block-embed__wrapper::before {
+			padding-top: 75%;
+		}
+		.wp-embed-responsive .wp-embed-aspect-1-1 .wp-block-embed__wrapper::before {
+			padding-top: 100%;
+		}
+		.wp-embed-responsive .wp-embed-aspect-9-16 .wp-block-embed__wrapper::before {
+			padding-top: 177.77%;
+		}
+		.wp-embed-responsive .wp-embed-aspect-1-2 .wp-block-embed__wrapper::before {
+			padding-top: 200%;
+		}
+		.wp-embed-responsive .wp-has-aspect-ratio .wp-block-embed__wrapper iframe {
+			position: absolute;
+			top: 0;
+			right: 0;
+			bottom: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+		}
+		#meta {
+			margin-top: 16px;
+			font-size: 13px;
+			color: #1e1e1e;
+		}
+	</style>
+	<link id="cg-css" rel="stylesheet" href="../../assets/css/consent-gate.css" />
+</head>
+<body>
+	<figure class="wp-block-embed is-type-video is-provider-youtube wp-block-embed-youtube wp-embed-aspect-16-9 wp-has-aspect-ratio">
+		<div class="wp-block-embed__wrapper">
+			<iframe
+				title="YouTube video"
+				width="640"
+				height="360"
+				data-cg-blocked="marketing"
+				data-cg-src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+				data-cg-kind="youtube"
+				allowfullscreen
+			></iframe>
+		</div>
+	</figure>
+	<pre id="meta"></pre>
+	<script>
+		(function () {
+			var iframe = document.querySelector("iframe");
+			var parent = iframe.parentNode;
+			var wrap = document.createElement("div");
+			wrap.className = "cg-embed-wrap";
+			parent.classList.add("cg-embed-host");
+			parent.insertBefore(wrap, iframe);
+			wrap.appendChild(iframe);
+
+			var overlay = document.createElement("div");
+			overlay.className = "cg-embed-overlay";
+			overlay.setAttribute("role", "region");
+			var title = document.createElement("strong");
+			title.textContent = "YouTube ist blockiert";
+			var body = document.createElement("p");
+			body.textContent = "Marketing-Cookies erlauben, um das Video zu sehen.";
+			var btn = document.createElement("button");
+			btn.type = "button";
+			btn.className = "cg-embed-open";
+			btn.textContent = "Cookie-Einstellungen öffnen";
+			overlay.appendChild(title);
+			overlay.appendChild(body);
+			overlay.appendChild(btn);
+			wrap.appendChild(overlay);
+
+			window.__CG_FIXTURE__ = {
+				measure: function () {
+					var host = document.querySelector(".wp-block-embed__wrapper");
+					var placeholder = document.querySelector(".cg-embed-wrap");
+					var overlayEl = document.querySelector(".cg-embed-overlay");
+					var frame = document.querySelector("iframe");
+					var hostRect = host.getBoundingClientRect();
+					var phRect = placeholder ? placeholder.getBoundingClientRect() : null;
+					var ovRect = overlayEl ? overlayEl.getBoundingClientRect() : null;
+					var frameRect = frame.getBoundingClientRect();
+					return {
+						hostHeight: hostRect.height,
+						hostTop: hostRect.top,
+						placeholderHeight: phRect ? phRect.height : 0,
+						placeholderTop: phRect ? phRect.top : null,
+						overlayTop: ovRect ? ovRect.top : null,
+						iframeVisible: frame.getAttribute("src") === "https://www.youtube.com/embed/dQw4w9WgXcQ",
+						iframeHeight: frameRect.height,
+						iframeWidth: frameRect.width,
+						hasHostClass: host.classList.contains("cg-embed-host"),
+						hasWrap: Boolean(placeholder),
+						aspect: hostRect.width > 0 && frameRect.height > 0 ? frameRect.width / frameRect.height : 0
+					};
+				},
+				consent: function () {
+					var wrapEl = document.querySelector(".cg-embed-wrap");
+					var frame = document.querySelector("iframe");
+					var host = document.querySelector(".wp-block-embed__wrapper");
+					if (!wrapEl || !frame || !host) return;
+					frame.setAttribute("src", frame.getAttribute("data-cg-src"));
+					frame.removeAttribute("data-cg-blocked");
+					host.insertBefore(frame, wrapEl);
+					host.removeChild(wrapEl);
+					host.classList.remove("cg-embed-host");
+				}
+			};
+
+			document.getElementById("meta").textContent = JSON.stringify(window.__CG_FIXTURE__.measure(), null, 2);
+		})();
+	</script>
+</body>
+</html>
