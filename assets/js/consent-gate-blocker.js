@@ -240,6 +240,7 @@
         });
         nativeSetAttr.call(node, "data-cg-blocked", rule.cat);
         nativeSetAttr.call(node, "data-cg-src", src);
+        markEmbedKind(node, src);
         try { node.type = "text/plain"; } catch (e) {}
         try { node.removeAttribute("src"); } catch (e2) {}
         try { if (srcDesc && srcDesc.set) srcDesc.set.call(node, ""); } catch (e3) {}
@@ -387,60 +388,158 @@
         return "marketing";
       }
 
-      function blockWidgets(root) {
-        var gate = linexoGate();
+      function appleMapsGate() {
+        var gates = config.embedGates || {};
+        if (Object.prototype.hasOwnProperty.call(gates, "apple_maps")) return gates.apple_maps || "";
+        return "marketing";
+      }
+
+      function isMapKitLibrarySrc(src) {
+        return /apple-mapkit\.com|maps\.apple\.com\/.*mapkit|\/mapkit\.js(?:\?|$)/i.test(String(src || ""));
+      }
+
+      function isMapKitInline(text) {
+        return /\bmapkit\s*\./i.test(String(text || ""));
+      }
+
+      function mapKitTargetIds(scope) {
+        var ids = {};
+        var root = scope && scope.querySelectorAll ? scope : document;
+        if (!root.querySelectorAll) return [];
+        var scripts = root.querySelectorAll("script");
+        for (var i = 0; i < scripts.length; i++) {
+          var text = scripts[i].textContent || "";
+          if (!isMapKitInline(text)) continue;
+          var re = /mapkit\.Map\s*\(\s*["']([^"']+)["']/g;
+          var match;
+          while ((match = re.exec(text))) {
+            if (match[1]) ids[match[1]] = true;
+          }
+        }
+        return Object.keys(ids);
+      }
+
+      function appendEmbedOverlay(wrap, kind) {
+        var locale = embedLocale();
+        var ui = (config.ui && config.ui[locale]) || {};
+        var hint = ui.embedBody || (locale === "en" ? "Allow the matching category to show this content." : "Erlauben Sie die passende Kategorie, um diesen Inhalt zu sehen.");
+        var titles = {
+          linexo: ui.linexoTitle || (locale === "en" ? "Linexo is blocked" : "Linexo ist blockiert"),
+          apple: ui.appleTitle || (locale === "en" ? "Apple Maps is blocked" : "Apple Maps ist blockiert")
+        };
+        var overlay = nativeCreate("div");
+        overlay.className = "cg-embed-overlay";
+        overlay.setAttribute("role", "region");
+        var title = nativeCreate("strong");
+        title.textContent = titles[kind] || titles.apple;
+        var body = nativeCreate("p");
+        body.textContent = hint;
+        var btn = nativeCreate("button");
+        btn.type = "button";
+        btn.className = "cg-embed-open";
+        btn.textContent = ui.openSettings || (locale === "en" ? "Open cookie settings" : "Cookie-Einstellungen öffnen");
+        btn.addEventListener("click", function () {
+          if (window.ConsentGate && typeof window.ConsentGate.open === "function") window.ConsentGate.open();
+        });
+        overlay.appendChild(title);
+        overlay.appendChild(body);
+        overlay.appendChild(btn);
+        wrap.appendChild(overlay);
+      }
+
+      function wrapWidgetElement(el, widgetKey, gate, kind) {
+        if (!el || el.getAttribute("data-cg-widget")) return;
+        var parent = el.parentNode;
+        if (!parent) return;
+        if (parent.classList && parent.classList.contains("cg-embed-wrap")) return;
+        el.setAttribute("data-cg-widget", widgetKey);
+        el.setAttribute("data-cg-blocked", gate);
+        if (kind === "apple") nativeSetAttr.call(el, "data-cg-kind", "apple_maps");
+        var wrap = nativeCreate("div");
+        wrap.className = "cg-embed-wrap cg-embed-wrap--widget";
+        var h = el.getAttribute("height") || (el.style && el.style.height) || "";
+        if (h) {
+          wrap.style.minHeight = /px|%|vh|rem/.test(String(h)) ? String(h) : String(h) + "px";
+        }
+        parent.insertBefore(wrap, el);
+        wrap.appendChild(el);
+        appendEmbedOverlay(wrap, kind);
+      }
+
+      function deferMapKitInlineScripts(root) {
+        var gate = appleMapsGate();
         if (!gate || allowed[gate]) return;
-        var list = [];
-        if (root && root.nodeType === 1 && root.id === "linexo-site-connect") list.push(root);
         var scope = root && root.querySelectorAll ? root : document;
+        var list = [];
+        if (root && root.nodeType === 1 && root.nodeName === "SCRIPT") list.push(root);
         if (scope.querySelectorAll) {
-          var found = scope.querySelectorAll("#linexo-site-connect");
+          var found = scope.querySelectorAll("script");
           for (var i = 0; i < found.length; i++) list.push(found[i]);
         }
         for (var n = 0; n < list.length; n++) {
-          var el = list[n];
-          if (el.getAttribute("data-cg-widget")) continue;
-          var parent = el.parentNode;
-          if (!parent) continue;
-          if (parent.classList && parent.classList.contains("cg-embed-wrap")) continue;
-          el.setAttribute("data-cg-widget", "linexo");
-          el.setAttribute("data-cg-blocked", gate);
-          var wrap = nativeCreate("div");
-          wrap.className = "cg-embed-wrap cg-embed-wrap--widget";
-          parent.insertBefore(wrap, el);
-          wrap.appendChild(el);
-          var locale = embedLocale();
-          var ui = (config.ui && config.ui[locale]) || {};
-          var overlay = nativeCreate("div");
-          overlay.className = "cg-embed-overlay";
-          overlay.setAttribute("role", "region");
-          var title = nativeCreate("strong");
-          title.textContent = ui.linexoTitle || (locale === "en" ? "Linexo is blocked" : "Linexo ist blockiert");
-          var body = nativeCreate("p");
-          body.textContent = ui.embedBody || (locale === "en" ? "Allow the matching category to show this content." : "Erlauben Sie die passende Kategorie, um diesen Inhalt zu sehen.");
-          var btn = nativeCreate("button");
-          btn.type = "button";
-          btn.className = "cg-embed-open";
-          btn.textContent = ui.openSettings || (locale === "en" ? "Open cookie settings" : "Cookie-Einstellungen öffnen");
-          btn.addEventListener("click", function () {
-            if (window.ConsentGate && typeof window.ConsentGate.open === "function") window.ConsentGate.open();
-          });
-          overlay.appendChild(title);
-          overlay.appendChild(body);
-          overlay.appendChild(btn);
-          wrap.appendChild(overlay);
+          var node = list[n];
+          if (!node || node.nodeName !== "SCRIPT") continue;
+          if (node.getAttribute("src") || node.getAttribute("data-cg-src")) continue;
+          if (node.getAttribute("data-cg-blocked")) continue;
+          var type = String(node.getAttribute("type") || "").toLowerCase();
+          if (type && type.indexOf("json") !== -1) continue;
+          if (!isMapKitInline(node.textContent || "")) continue;
+          stampScript(node);
+          nativeSetAttr.call(node, "data-cg-blocked", gate);
+          nativeSetAttr.call(node, "data-cg-kind", "apple_maps");
+          nativeSetAttr.call(node, "data-consent-gate", gate);
+          try { node.type = "text/plain"; } catch (e) {}
         }
       }
 
-      function releaseWidgets() {
+      function blockAppleMapsWidgets(root) {
+        var gate = appleMapsGate();
+        if (!gate || allowed[gate]) return;
+        deferMapKitInlineScripts(root);
+        var ids = mapKitTargetIds(root && root.nodeType === 1 ? document : root);
+        for (var i = 0; i < ids.length; i++) {
+          var el = document.getElementById(ids[i]);
+          if (el) wrapWidgetElement(el, "apple_maps", gate, "apple");
+        }
+      }
+
+      function blockWidgets(root) {
         var gate = linexoGate();
-        if (gate && !allowed[gate]) return;
-        var nodes = document.querySelectorAll("[data-cg-widget='linexo']");
-        for (var i = 0; i < nodes.length; i++) {
-          var el = nodes[i];
-          el.removeAttribute("data-cg-blocked");
-          el.removeAttribute("data-cg-widget");
-          unwrapMapsPlaceholder(el);
+        if (gate && !allowed[gate]) {
+          var list = [];
+          if (root && root.nodeType === 1 && root.id === "linexo-site-connect") list.push(root);
+          var scope = root && root.querySelectorAll ? root : document;
+          if (scope.querySelectorAll) {
+            var found = scope.querySelectorAll("#linexo-site-connect");
+            for (var i = 0; i < found.length; i++) list.push(found[i]);
+          }
+          for (var n = 0; n < list.length; n++) {
+            wrapWidgetElement(list[n], "linexo", gate, "linexo");
+          }
+        }
+        blockAppleMapsWidgets(root);
+      }
+
+      function releaseWidgets() {
+        var linexo = linexoGate();
+        if (!linexo || allowed[linexo]) {
+          var linexoNodes = document.querySelectorAll("[data-cg-widget='linexo']");
+          for (var i = 0; i < linexoNodes.length; i++) {
+            var el = linexoNodes[i];
+            el.removeAttribute("data-cg-blocked");
+            el.removeAttribute("data-cg-widget");
+            unwrapMapsPlaceholder(el);
+          }
+        }
+        var apple = appleMapsGate();
+        if (!apple || allowed[apple]) {
+          var appleNodes = document.querySelectorAll("[data-cg-widget='apple_maps']");
+          for (var n = 0; n < appleNodes.length; n++) {
+            var mapEl = appleNodes[n];
+            mapEl.removeAttribute("data-cg-blocked");
+            mapEl.removeAttribute("data-cg-widget");
+            unwrapMapsPlaceholder(mapEl);
+          }
         }
       }
 
@@ -497,9 +596,24 @@
         }
       }).observe(document.documentElement, { childList: true, subtree: true });
 
+      function deferInlineMapKitNode(node) {
+        var gate = appleMapsGate();
+        if (!gate || allowed[gate] || !node || node.nodeName !== "SCRIPT") return false;
+        if (node.getAttribute("src") || node.getAttribute("data-cg-src")) return false;
+        if (node.getAttribute("data-cg-blocked")) return false;
+        if (!isMapKitInline(node.textContent || "")) return false;
+        stampScript(node);
+        nativeSetAttr.call(node, "data-cg-blocked", gate);
+        nativeSetAttr.call(node, "data-cg-kind", "apple_maps");
+        nativeSetAttr.call(node, "data-consent-gate", gate);
+        try { node.type = "text/plain"; } catch (e) {}
+        return false;
+      }
+
       Node.prototype.appendChild = function (node) {
         if (node && node.nodeName === "SCRIPT") {
           if (neutralize(node)) return node;
+          deferInlineMapKitNode(node);
           var appendSrc = node.getAttribute("src") || "";
           if (appendSrc && trackerHost(appendSrc)) nativeSetAttr.call(node, "src", replaySrc(appendSrc));
         }
@@ -508,6 +622,7 @@
       Node.prototype.insertBefore = function (node, ref) {
         if (node && node.nodeName === "SCRIPT") {
           if (neutralize(node)) return node;
+          deferInlineMapKitNode(node);
           var insertSrc = node.getAttribute("src") || "";
           if (insertSrc && trackerHost(insertSrc)) nativeSetAttr.call(node, "src", replaySrc(insertSrc));
         }
@@ -749,6 +864,72 @@
           bypass = true;
           var seen = {};
           var i;
+          var mapkitInlines = [];
+          var mapkitLibs = 0;
+          var mapkitDone = 0;
+
+          function finishRelease() {
+            var n;
+            for (n = 0; n < mapkitInlines.length; n++) {
+              var mk = mapkitInlines[n];
+              reviveScript(mk.node, "", mk.inline);
+            }
+            mapkitInlines = [];
+            var nodes = document.querySelectorAll("[data-cg-blocked]");
+            for (n = 0; n < nodes.length; n++) {
+              var blocked = nodes[n];
+              if (blocked.nodeName === "SCRIPT") continue;
+              var blockedCat = blocked.getAttribute("data-cg-blocked");
+              if (!allowedCategory(blockedCat)) continue;
+              if (blocked.nodeName === "LINK") {
+                var href = blocked.getAttribute("data-cg-href");
+                if (href) nativeSetAttr.call(blocked, "href", href);
+                blocked.removeAttribute("data-cg-blocked");
+              } else if (blocked.getAttribute("data-cg-widget")) {
+                continue;
+              } else {
+                var mediaSrc = blocked.getAttribute("data-cg-src");
+                if (!mediaSrc) continue;
+                nativeSetAttr.call(blocked, "src", mediaSrc);
+                blocked.removeAttribute("data-cg-blocked");
+                if (blocked.nodeName === "IFRAME" || blocked.nodeName === "IMG") unwrapMapsPlaceholder(blocked);
+              }
+            }
+            bypass = false;
+            releaseWidgets();
+          }
+
+          function onMapKitLibSettled() {
+            mapkitDone += 1;
+            if (mapkitDone >= mapkitLibs) finishRelease();
+          }
+
+          function reviveMapKitLibrary(node, src, inline, wasAsync, moduleType) {
+            var next = nativeCreate("script");
+            var type = moduleType || (node && node.getAttribute("data-cg-type")) || "";
+            if (type && type.toLowerCase() !== "text/plain") next.type = type;
+            if (node) {
+              var attrs = node.attributes;
+              for (var a = 0; a < attrs.length; a++) {
+                var name = attrs[a].name.toLowerCase();
+                if (name === "src" || name === "type" || name === "data-cg-src" || name === "data-cg-blocked" || name === "data-cg-type" || name === "data-cg-async" || name === "data-consent-gate" || name === "data-cg-kind") continue;
+                if (name === "id" || name === "nonce" || name === "crossorigin" || name === "integrity" || name === "referrerpolicy" || name === "nomodule" || name.indexOf("data-") === 0) {
+                  nativeSetAttr.call(next, attrs[a].name, attrs[a].value);
+                }
+              }
+            }
+            next.async = false;
+            next.onload = onMapKitLibSettled;
+            next.onerror = onMapKitLibSettled;
+            next.src = replaySrc(src);
+            if (node && node.parentNode) {
+              node.parentNode.insertBefore(next, node);
+              node.parentNode.removeChild(node);
+            } else {
+              (document.head || document.body).appendChild(next);
+            }
+          }
+
           var scripts = document.querySelectorAll('script[data-cg-blocked], script[type="text/plain"][data-consent-gate]');
           for (i = 0; i < scripts.length; i++) {
             var node = scripts[i];
@@ -761,6 +942,16 @@
               continue;
             }
             if (!src && !inline.trim()) continue;
+            if (!src && isMapKitInline(inline)) {
+              mapkitInlines.push({ node: node, inline: inline });
+              continue;
+            }
+            if (src && (isMapKitLibrarySrc(src) || node.getAttribute("data-cg-kind") === "apple_maps")) {
+              mapkitLibs += 1;
+              seen[src] = true;
+              reviveMapKitLibrary(node, src, inline);
+              continue;
+            }
             reviveScript(node, src, inline);
             if (src) seen[src] = true;
           }
@@ -769,6 +960,16 @@
             if (item.kind !== "script" || !allowedCategory(item.cat)) continue;
             if (item.src && seen[item.src]) continue;
             if (!item.src && !item.text) continue;
+            if (!item.src && isMapKitInline(item.text)) {
+              mapkitInlines.push({ node: item.node || null, inline: item.text });
+              continue;
+            }
+            if (item.src && isMapKitLibrarySrc(item.src)) {
+              mapkitLibs += 1;
+              seen[item.src] = true;
+              reviveMapKitLibrary(item.node || null, item.src, item.text, item.async, item.type);
+              continue;
+            }
             var held = item.node;
             if (held && held.nodeName === "SCRIPT" && !held.parentNode) {
               if (item.type && item.type.toLowerCase() !== "text/plain") held.type = item.type;
@@ -784,26 +985,7 @@
             if (item.src) seen[item.src] = true;
           }
           pending = [];
-          var nodes = document.querySelectorAll("[data-cg-blocked]");
-          for (i = 0; i < nodes.length; i++) {
-            var blocked = nodes[i];
-            if (blocked.nodeName === "SCRIPT") continue;
-            var blockedCat = blocked.getAttribute("data-cg-blocked");
-            if (!allowedCategory(blockedCat)) continue;
-            if (blocked.nodeName === "LINK") {
-              var href = blocked.getAttribute("data-cg-href");
-              if (href) nativeSetAttr.call(blocked, "href", href);
-              blocked.removeAttribute("data-cg-blocked");
-            } else {
-              var mediaSrc = blocked.getAttribute("data-cg-src");
-              if (!mediaSrc) continue;
-              nativeSetAttr.call(blocked, "src", mediaSrc);
-              blocked.removeAttribute("data-cg-blocked");
-              if (blocked.nodeName === "IFRAME" || blocked.nodeName === "IMG") unwrapMapsPlaceholder(blocked);
-            }
-          }
-          bypass = false;
-          releaseWidgets();
+          if (mapkitLibs === 0) finishRelease();
         },
         purge: function (categories) {
           allowed.statistics = Boolean(categories && categories.statistics);

@@ -168,8 +168,62 @@ class ConsentGate_Frontend {
 		}
 
 		$html = $this->gate_embeds( $html );
+		$html = $this->gate_raw_assets( $html );
 
-		return $this->gate_raw_assets( $html );
+		return $this->gate_mapkit_inline_scripts( $html );
+	}
+
+	/**
+	 * Defer inline MapKit bootstrap scripts until Apple Maps consent.
+	 *
+	 * MapKit embeds are often a library script plus an inline `mapkit.Map("…")`
+	 * initializer. The library is gated via src; the inline script must also be
+	 * deferred or the map never re-initializes after consent.
+	 *
+	 * @param string $html Full HTML.
+	 */
+	private function gate_mapkit_inline_scripts( string $html ): string {
+		$category = ConsentGate_Blocker::category_for_key( 'apple_maps' );
+		if ( '' === $category ) {
+			return $html;
+		}
+		if ( ! str_contains( strtolower( $html ), 'mapkit' ) ) {
+			return $html;
+		}
+
+		$updated = preg_replace_callback(
+			'/<script\b([^>]*)>(.*?)<\/script>/is',
+			static function ( array $matches ) use ( $category ): string {
+				$attrs = $matches[1];
+				$body  = $matches[2];
+
+				if ( preg_match( '/\bsrc\s*=/i', $attrs ) ) {
+					return $matches[0];
+				}
+				if ( preg_match( '/\bid\s*=\s*([\'"])consentgate/i', $attrs ) ) {
+					return $matches[0];
+				}
+				if ( preg_match( '/\bdata-cg-blocked\s*=/i', $attrs ) || preg_match( '/\bdata-consent-gate\s*=/i', $attrs ) ) {
+					return $matches[0];
+				}
+				if ( preg_match( '/\btype\s*=\s*([\'"])[^\'"]*json/i', $attrs ) ) {
+					return $matches[0];
+				}
+				if ( ! preg_match( '/\bmapkit\s*\./i', $body ) ) {
+					return $matches[0];
+				}
+
+				$attrs = preg_replace( '/\stype\s*=\s*([\'"])[^\'"]*\1/i', '', $attrs );
+				if ( ! is_string( $attrs ) ) {
+					$attrs = $matches[1];
+				}
+
+				return '<script type="text/plain" data-consent-gate="' . esc_attr( $category ) . '" data-cg-blocked="' . esc_attr( $category ) . '" data-cg-kind="apple_maps"' . $attrs . '>' . $body . '</script>';
+			},
+			$html
+		);
+
+		return is_string( $updated ) ? $updated : $html;
 	}
 
 	/**
@@ -210,6 +264,10 @@ class ConsentGate_Frontend {
 				$processor->set_attribute( 'data-consent-gate', $category );
 				$processor->set_attribute( 'data-cg-blocked', $category );
 				$processor->set_attribute( 'data-cg-src', $src );
+				$entry = ConsentGate_Catalog::entry_for_src( $src );
+				if ( is_array( $entry ) ) {
+					$processor->set_attribute( 'data-cg-kind', (string) $entry['key'] );
+				}
 				$processor->remove_attribute( 'src' );
 				continue;
 			}

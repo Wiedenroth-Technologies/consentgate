@@ -498,39 +498,56 @@
   opacity: 0.7;
 }
 
-.cg-reopen {
+/*
+ * Reopen lives on document.body (outside #consentgate-root), so theme
+ * button rules (e.g. transparent backgrounds) can override weak selectors.
+ * Mirror the banner surface colors and keep !important for contrast.
+ */
+.cg-reopen,
+#consentgate-root .cg-reopen,
+button#consentgate-reopen.cg-reopen {
   position: fixed;
   left: 16px;
   bottom: 16px;
   z-index: 2147482999;
   box-sizing: border-box;
-  width: 44px;
-  height: 44px;
-  padding: 8px;
-  overflow: hidden;
-  border: 0;
-  border-radius: 999px;
-  background: var(--cg-primary, #111);
-  color: #fff;
-  cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  display: grid;
-  place-items: center;
-}
-
-#consentgate-root .cg-reopen {
-  background: var(--cg-primary, #111) !important;
-  color: #fff !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
   width: 44px !important;
   height: 44px !important;
-  border-radius: 999px !important;
   padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--cg-fg, #1a1a1a) 16%, transparent) !important;
+  border-radius: 999px !important;
+  background: var(--cg-bg, #ffffff) !important;
+  background-color: var(--cg-bg, #ffffff) !important;
+  background-image: none !important;
+  color: var(--cg-fg, #1a1a1a) !important;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18) !important;
+  display: grid !important;
+  place-items: center;
+  appearance: none !important;
+  -webkit-appearance: none !important;
 }
 
-.cg-reopen.cg-reopen--right {
+.cg-reopen.cg-reopen--right,
+button#consentgate-reopen.cg-reopen--right {
   left: auto;
   right: 16px;
+}
+
+.cg-reopen:focus,
+.cg-reopen:focus-visible,
+button#consentgate-reopen.cg-reopen:focus,
+button#consentgate-reopen.cg-reopen:focus-visible {
+  outline: 2px solid var(--cg-primary, #111111) !important;
+  outline-offset: 3px;
+}
+
+.cg-reopen:hover,
+button#consentgate-reopen.cg-reopen:hover {
+  background: var(--cg-bg, #ffffff) !important;
+  background-color: var(--cg-bg, #ffffff) !important;
+  color: var(--cg-fg, #1a1a1a) !important;
 }
 
 .cg-reopen svg {
@@ -539,6 +556,7 @@
   height: 22px;
   flex: 0 0 22px;
   fill: currentColor;
+  color: inherit;
 }
 
 .cg-embed-wrap {
