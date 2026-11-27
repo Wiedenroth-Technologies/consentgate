@@ -633,6 +633,18 @@ button#consentgate-reopen.cg-reopen:hover {
   visibility: hidden;
 }
 
+/*
+ * After consent, third-party embeds (Instagram resizes via postMessage)
+ * must not inherit placeholder constraints. Only blocked nodes inside a
+ * wrap are clipped; live iframes stay auto-sized by their SDK.
+ */
+iframe.instagram-media:not([data-cg-blocked]),
+iframe[id^="instagram-embed-"]:not([data-cg-blocked]),
+blockquote.instagram-media:not([data-cg-blocked]) iframe:not([data-cg-blocked]) {
+  max-height: none;
+  visibility: visible;
+}
+
 .cg-embed-overlay {
   position: absolute;
   inset: 0;

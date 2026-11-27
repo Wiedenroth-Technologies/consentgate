@@ -126,8 +126,10 @@ map.showItems([]);
     </script>
   </section>
   <section aria-label="Instagram">
-    <blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/demo/">IG</blockquote>
-    <script type="text/plain" data-consent-gate="marketing" data-cg-blocked="marketing" data-cg-kind="instagram" data-cg-src="./${igStub}"></script>
+    <blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/BUawzlJAMPA/" data-instgrm-version="14" style="background:#FFF; border:0; border-radius:3px; margin:1px; max-width:540px; min-width:326px; padding:0; width:99.375%;">
+      <a href="https://www.instagram.com/p/BUawzlJAMPA/" target="_blank" rel="noopener noreferrer">Instagram-Beitrag ansehen</a>
+    </blockquote>
+    <script type="text/plain" data-consent-gate="marketing" data-cg-blocked="marketing" data-cg-kind="instagram" data-cg-src="./${igStub}" async></script>
   </section>
   <section aria-label="Twitter">
     <blockquote class="twitter-tweet">Tweet</blockquote>
@@ -177,7 +179,8 @@ map.showItems([]);
     var wild = document.getElementById("wild");
     var yt = document.querySelector('.wp-block-embed iframe');
     var spotify = document.getElementById("spotify");
-    var igFrame = document.querySelector("iframe.instagram-media-iframe, blockquote.instagram-media iframe");
+    var igQuote = document.querySelector("blockquote.instagram-media, blockquote.instagram-media-registered, blockquote[data-instgrm-permalink]");
+    var igFrame = document.querySelector("iframe.instagram-media-rendered, iframe[id^='instagram-embed-'], iframe.instagram-media");
     var twHelper = document.getElementById("twitter-widget-0");
     var own = Array.prototype.map.call(document.querySelectorAll("script[id^='consentgate']"), function (s) {
       return {
@@ -187,6 +190,14 @@ map.showItems([]);
         type: s.getAttribute("type")
       };
     });
+    var igHeight = 0;
+    if (igFrame) {
+      igHeight = Math.max(
+        igFrame.offsetHeight || 0,
+        parseInt(igFrame.getAttribute("height") || "0", 10) || 0,
+        parseInt((igFrame.style && igFrame.style.height) || "0", 10) || 0
+      );
+    }
     return {
       ownScripts: own,
       ownStamped: own.some(function (s) { return Boolean(s.blocked || s.kind); }),
@@ -203,7 +214,9 @@ map.showItems([]);
         }
         return "";
       })(),
-      igWrap: Boolean(wrapFor("blockquote.instagram-media")),
+      igWrap: Boolean(wrapFor("blockquote.instagram-media") || wrapFor("blockquote[data-instgrm-permalink]")),
+      igPermalink: igQuote ? igQuote.getAttribute("data-instgrm-permalink") || "" : "",
+      igHasCgAttrs: Boolean(igQuote && (igQuote.getAttribute("data-cg-widget") || igQuote.getAttribute("data-cg-blocked") || igQuote.getAttribute("data-cg-kind"))),
       twWrap: Boolean(wrapFor("blockquote.twitter-tweet")),
       ttWrap: Boolean(wrapFor("blockquote.tiktok-embed")),
       ytWrap: Boolean(document.querySelector(".wp-block-embed .cg-embed-wrap")),
@@ -222,9 +235,12 @@ map.showItems([]);
       wildBlocked: wild ? wild.hasAttribute("data-cg-blocked") : false,
       localBlocked: local ? local.hasAttribute("data-cg-blocked") : false,
       igProcessed: Boolean(window.__CG_IG_PROCESSED__),
+      igError: window.__CG_IG_ERROR__ || "",
+      igProcessCalls: window.__CG_IG_PROCESS_CALLS__ || 0,
       igFrameSrc: igFrame ? (igFrame.getAttribute("src") || "") : "",
       igFrameBlocked: igFrame ? igFrame.hasAttribute("data-cg-blocked") : false,
       igFrameWrap: Boolean(igFrame && igFrame.closest && igFrame.closest(".cg-embed-wrap")),
+      igFrameHeight: igHeight,
       twLoaded: Boolean(window.__CG_TW_LOADED__),
       twHelperBlocked: twHelper ? twHelper.hasAttribute("data-cg-blocked") : false,
       twHelperWrap: Boolean(twHelper && twHelper.closest && twHelper.closest(".cg-embed-wrap")),
@@ -275,6 +291,7 @@ try {
   assert(!blocked.ownStamped, "ConsentGate own scripts must not be stamped as widgets");
   assert(blocked.mapWrap, "Apple Maps placeholder missing");
   assert(blocked.igWrap, "Instagram placeholder missing");
+  assert(blocked.igPermalink.includes("instagram.com/p/"), "Instagram permalink must stay on blockquote");
   assert(blocked.twWrap, "Twitter placeholder missing");
   assert(blocked.ttWrap, "TikTok placeholder missing");
   assert(blocked.ytWrap, "YouTube placeholder missing");
@@ -291,7 +308,8 @@ try {
 
   aborted.length = 0;
   await page.evaluate(() => window.__CG_WIDGET_FIXTURE__.consentMarketing());
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(900);
+  await page.waitForFunction(() => (window.__CG_IG_HEIGHT__ || 0) >= 100 || document.querySelector("iframe.instagram-media-rendered, iframe[id^='instagram-embed-']"), null, { timeout: 3000 }).catch(() => {});
 
   const consented = await page.evaluate(() => window.__CG_WIDGET_FIXTURE__.measure());
   const postConsentAborted = aborted.filter(
@@ -319,9 +337,13 @@ try {
   );
   assert(!consented.igWrap, "Instagram wrap should unwrap");
   assert(consented.igProcessed, "instgrm.Embeds.process should run");
+  assert(!consented.igError, "Instagram stub error: " + consented.igError);
+  assert(!consented.igHasCgAttrs, "Instagram blockquote must not keep ConsentGate attrs");
   assert(consented.igFrameSrc.includes("/embed"), "Instagram iframe should be inserted");
   assert(!consented.igFrameBlocked, "Instagram iframe must not be re-blocked");
   assert(!consented.igFrameWrap, "Instagram iframe must not get a new wrap");
+  assert(consented.igFrameHeight > 100, "Instagram iframe height must be > 100 after MEASURE, got " + consented.igFrameHeight);
+  assert(consented.igProcessCalls >= 1 && consented.igProcessCalls <= 2, "Instagram process should run once (or once more as fallback), got " + consented.igProcessCalls);
   assert(!consented.twWrap, "Twitter wrap should unwrap");
   assert(consented.twLoaded, "twttr.widgets.load should run");
   assert(!consented.twHelperBlocked, "Twitter helper iframe must not be blocked");

@@ -478,14 +478,32 @@
         appendEmbedOverlay(wrap, kind, host);
       }
 
-      function unwrapMapsPlaceholder(iframe) {
-        var wrap = iframe.parentNode;
+      function unwrapMapsPlaceholder(el) {
+        var wrap = el && el.parentNode;
         if (!wrap || !wrap.classList || !wrap.classList.contains("cg-embed-wrap")) return;
         var parent = wrap.parentNode;
         if (!parent) return;
-        parent.insertBefore(iframe, wrap);
+        // Evacuate every non-overlay child first. Embed SDKs (Instagram) may
+        // insert iframes as siblings inside the wrap; destroying the wrap
+        // would delete those nodes with it.
+        while (wrap.firstChild) {
+          var child = wrap.firstChild;
+          if (child.nodeType === 1 && child.classList && child.classList.contains("cg-embed-overlay")) {
+            wrap.removeChild(child);
+            continue;
+          }
+          parent.insertBefore(child, wrap);
+        }
         parent.removeChild(wrap);
         clearEmbedHost(parent);
+      }
+
+      function clearWidgetMarks(el) {
+        if (!el || !el.removeAttribute) return;
+        el.removeAttribute("data-cg-blocked");
+        el.removeAttribute("data-cg-widget");
+        el.removeAttribute("data-cg-kind");
+        el.removeAttribute("data-cg-host");
       }
 
       function wrapWidgetElement(el, widgetKey, gate) {
@@ -588,17 +606,55 @@
         blockRegisteredWidgets(root);
       }
 
+      function instagramEmbedPending(el) {
+        if (!el || !el.parentNode) return false;
+        var sib = el.previousElementSibling;
+        if (sib && sib.tagName === "IFRAME") {
+          var mark = (sib.className || "") + " " + (sib.id || "") + " " + (sib.getAttribute("src") || "");
+          if (/instagram\.com\/(?:[^/?#]+\/)*embed|instagram-media|instagram-embed-/i.test(mark)) return true;
+        }
+        if (el.id) {
+          var byPayload = el.parentNode.querySelector('iframe[data-instgrm-payload-id="' + el.id.replace(/"/g, "") + '"]');
+          if (byPayload) return true;
+        }
+        return false;
+      }
+
+      function prepareInstagramForProcess() {
+        // Instagram's embed.js strips class "instagram-media" after a first
+        // attempt and only re-processes nodes that still have that class.
+        var nodes = document.querySelectorAll(
+          "blockquote.instagram-media, blockquote.instagram-media-registered, blockquote[data-instgrm-permalink]"
+        );
+        for (var i = 0; i < nodes.length; i++) {
+          var el = nodes[i];
+          if (!el || el.tagName !== "BLOCKQUOTE") continue;
+          if (!el.getAttribute("data-instgrm-permalink") && !el.querySelector("a[href*='instagram.com']")) continue;
+          // Already has a sibling iframe from a successful/in-flight process — leave it.
+          if (instagramEmbedPending(el)) continue;
+          var cls = String(el.className || "");
+          cls = cls.replace(/\binstagram-media-registered\b/g, " ").replace(/\binstagram-media-rendered\b/g, " ");
+          if (!/\binstagram-media\b/.test(cls)) cls += " instagram-media";
+          el.className = cls.replace(/\s+/g, " ").trim();
+        }
+      }
+
       function runReinitHooks(kinds) {
         var seen = {};
-        for (var i = 0; i < kinds.length; i++) {
-          var id = kinds[i];
+        var list = kinds || [];
+        for (var i = 0; i < list.length; i++) {
+          var id = list[i];
           if (!id || seen[id]) continue;
           seen[id] = true;
           var widget = widgetById(id);
           var hook = widget && widget.reinit ? widget.reinit : id;
           try {
             if (hook === "instagram" && window.instgrm && instgrm.Embeds && typeof instgrm.Embeds.process === "function") {
-              instgrm.Embeds.process();
+              prepareInstagramForProcess();
+              // Only invoke when something still needs processing (avoid double-init).
+              if (document.querySelector("blockquote.instagram-media")) {
+                instgrm.Embeds.process();
+              }
             } else if (hook === "twitter" && window.twttr && twttr.widgets && typeof twttr.widgets.load === "function") {
               twttr.widgets.load();
             } else if (hook === "facebook" && window.FB && FB.XFBML && typeof FB.XFBML.parse === "function") {
@@ -614,7 +670,7 @@
         }
       }
 
-      function releaseWidgets() {
+      function releaseWidgetPlaceholders() {
         var released = [];
         var nodes = document.querySelectorAll("[data-cg-widget]");
         for (var i = 0; i < nodes.length; i++) {
@@ -622,12 +678,30 @@
           var key = el.getAttribute("data-cg-widget") || "";
           var gate = serviceGate(key) || el.getAttribute("data-cg-blocked") || "";
           if (gate && !allowed[gate] && !allowedCategory(gate)) continue;
-          released.push(key);
-          el.removeAttribute("data-cg-blocked");
-          el.removeAttribute("data-cg-widget");
+          if (key) released.push(key);
+          clearWidgetMarks(el);
           unwrapMapsPlaceholder(el);
         }
-        runReinitHooks(released);
+        // Also remove orphan wraps that lost their marked child (SDK may have
+        // moved/removed the original node during a partial process).
+        var wraps = document.querySelectorAll(".cg-embed-wrap");
+        for (var w = 0; w < wraps.length; w++) {
+          var wrap = wraps[w];
+          if (wrap.querySelector("[data-cg-blocked], [data-cg-widget]")) continue;
+          var parent = wrap.parentNode;
+          if (!parent) continue;
+          while (wrap.firstChild) {
+            var child = wrap.firstChild;
+            if (child.nodeType === 1 && child.classList && child.classList.contains("cg-embed-overlay")) {
+              wrap.removeChild(child);
+              continue;
+            }
+            parent.insertBefore(child, wrap);
+          }
+          parent.removeChild(wrap);
+          clearEmbedHost(parent);
+        }
+        return released;
       }
 
       function siteHost() {
@@ -1028,6 +1102,12 @@
           var widgetLibs = 0;
           var widgetDone = 0;
           var releasedKinds = [];
+          // Unwrap placeholders BEFORE loading widget SDKs. Instagram embed.js
+          // auto-runs process() on load; if the blockquote is still inside
+          // .cg-embed-wrap, the SDK inserts an iframe sibling that a naive
+          // unwrap would destroy, and it strips class "instagram-media".
+          var unwrappedKinds = releaseWidgetPlaceholders();
+          for (i = 0; i < unwrappedKinds.length; i++) releasedKinds.push(unwrappedKinds[i]);
 
           function finishRelease() {
             var n;
@@ -1056,10 +1136,14 @@
                 if (blocked.nodeName === "IFRAME" || blocked.nodeName === "IMG") unwrapMapsPlaceholder(blocked);
                 nativeSetAttr.call(blocked, "src", mediaSrc);
                 blocked.removeAttribute("data-cg-blocked");
+                clearWidgetMarks(blocked);
               }
             }
+            // Catch any wraps that appeared while libraries loaded.
+            var late = releaseWidgetPlaceholders();
+            for (n = 0; n < late.length; n++) releasedKinds.push(late[n]);
             bypass = false;
-            releaseWidgets();
+            // Single reinit pass after libraries are loaded and DOM is unwrapped.
             runReinitHooks(releasedKinds);
           }
 
