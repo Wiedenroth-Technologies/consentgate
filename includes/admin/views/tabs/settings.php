@@ -87,6 +87,40 @@ $snippet = ConsentGate_Policy_Scan::snippet( $policy['missing'] ?? array() );
 	<div class="<?php echo esc_attr( $ui->cls( 'card' ) ); ?>">
 		<?php
 		$ui->heading(
+			__( 'External embeds', 'wiedenroth-technologies-consentgate' ),
+			__( 'Unknown third-party iframes are blocked until marketing consent. Known services keep their own placeholders.', 'wiedenroth-technologies-consentgate' )
+		);
+		ConsentGate_Admin::field_toggle(
+			$ui,
+			'block_external_embeds',
+			$options['block_external_embeds'] ?? true,
+			__( 'Block unknown iframes', 'wiedenroth-technologies-consentgate' ),
+			__( 'Block external iframes that are not in the service catalog', 'wiedenroth-technologies-consentgate' ),
+			__( 'Same-origin iframes and embeds of this site are never blocked. Turn this off only if you accept third-party iframes without consent.', 'wiedenroth-technologies-consentgate' )
+		);
+		$allowlist = $options['external_embed_allowlist'] ?? array();
+		if ( ! is_array( $allowlist ) ) {
+			$allowlist = array();
+		}
+		?>
+		<div class="<?php echo esc_attr( $ui->cls( 'field' ) ); ?>">
+			<label class="<?php echo esc_attr( $ui->cls( 'field__label' ) ); ?>" for="<?php echo esc_attr( ConsentGate_Admin::field_id( 'external_embed_allowlist' ) ); ?>"><?php esc_html_e( 'Allowlisted hosts', 'wiedenroth-technologies-consentgate' ); ?></label>
+			<div class="<?php echo esc_attr( $ui->cls( 'field__control' ) ); ?>">
+				<textarea
+					class="<?php echo esc_attr( $ui->cls( 'input' ) ); ?>"
+					id="<?php echo esc_attr( ConsentGate_Admin::field_id( 'external_embed_allowlist' ) ); ?>"
+					name="<?php echo esc_attr( ConsentGate_Admin::option_name( 'external_embed_allowlist' ) ); ?>"
+					rows="4"
+					placeholder="cdn.example.com&#10;player.example.org"
+				><?php echo esc_textarea( implode( "\n", $allowlist ) ); ?></textarea>
+				<?php $ui->help( __( 'One hostname per line (without https://). Use *.example.com to allow all subdomains. These external iframes load without consent.', 'wiedenroth-technologies-consentgate' ) ); ?>
+			</div>
+		</div>
+	</div>
+
+	<div class="<?php echo esc_attr( $ui->cls( 'card' ) ); ?>">
+		<?php
+		$ui->heading(
 			__( 'Weekly check', 'wiedenroth-technologies-consentgate' ),
 			__( 'Once a week Wiedenroth Technologies ConsentGate looks for new or missing services and emails you. It does not change categories, blocking, or the banner.', 'wiedenroth-technologies-consentgate' )
 		);

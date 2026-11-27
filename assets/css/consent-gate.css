@@ -498,39 +498,56 @@
   opacity: 0.7;
 }
 
-.cg-reopen {
+/*
+ * Reopen lives on document.body (outside #consentgate-root), so theme
+ * button rules (e.g. transparent backgrounds) can override weak selectors.
+ * Mirror the banner surface colors and keep !important for contrast.
+ */
+.cg-reopen,
+#consentgate-root .cg-reopen,
+button#consentgate-reopen.cg-reopen {
   position: fixed;
   left: 16px;
   bottom: 16px;
   z-index: 2147482999;
   box-sizing: border-box;
-  width: 44px;
-  height: 44px;
-  padding: 8px;
-  overflow: hidden;
-  border: 0;
-  border-radius: 999px;
-  background: var(--cg-primary, #111);
-  color: #fff;
-  cursor: pointer;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-  display: grid;
-  place-items: center;
-}
-
-#consentgate-root .cg-reopen {
-  background: var(--cg-primary, #111) !important;
-  color: #fff !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
   width: 44px !important;
   height: 44px !important;
-  border-radius: 999px !important;
   padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--cg-fg, #1a1a1a) 16%, transparent) !important;
+  border-radius: 999px !important;
+  background: var(--cg-bg, #ffffff) !important;
+  background-color: var(--cg-bg, #ffffff) !important;
+  background-image: none !important;
+  color: var(--cg-fg, #1a1a1a) !important;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18) !important;
+  display: grid !important;
+  place-items: center;
+  appearance: none !important;
+  -webkit-appearance: none !important;
 }
 
-.cg-reopen.cg-reopen--right {
+.cg-reopen.cg-reopen--right,
+button#consentgate-reopen.cg-reopen--right {
   left: auto;
   right: 16px;
+}
+
+.cg-reopen:focus,
+.cg-reopen:focus-visible,
+button#consentgate-reopen.cg-reopen:focus,
+button#consentgate-reopen.cg-reopen:focus-visible {
+  outline: 2px solid var(--cg-primary, #111111) !important;
+  outline-offset: 3px;
+}
+
+.cg-reopen:hover,
+button#consentgate-reopen.cg-reopen:hover {
+  background: var(--cg-bg, #ffffff) !important;
+  background-color: var(--cg-bg, #ffffff) !important;
+  color: var(--cg-fg, #1a1a1a) !important;
 }
 
 .cg-reopen svg {
@@ -539,6 +556,7 @@
   height: 22px;
   flex: 0 0 22px;
   fill: currentColor;
+  color: inherit;
 }
 
 .cg-embed-wrap {
@@ -550,6 +568,7 @@
   min-height: 280px;
   background: #e8eaed;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .cg-embed-wrap--widget {
@@ -613,6 +632,19 @@
   height: 100%;
   border: 0;
   visibility: hidden;
+  pointer-events: none;
+}
+
+/*
+ * After consent, third-party embeds (Instagram resizes via postMessage)
+ * must not inherit placeholder constraints. Only blocked nodes inside a
+ * wrap are clipped; live iframes stay auto-sized by their SDK.
+ */
+iframe.instagram-media:not([data-cg-blocked]),
+iframe[id^="instagram-embed-"]:not([data-cg-blocked]),
+blockquote.instagram-media:not([data-cg-blocked]) iframe:not([data-cg-blocked]) {
+  max-height: none;
+  visibility: visible;
 }
 
 .cg-embed-overlay {
@@ -630,30 +662,85 @@
   color: #1a1a1a;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
+  box-sizing: border-box;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 
-.cg-embed-overlay strong {
+.cg-embed-logo {
+  display: block;
+  width: 28px;
+  height: 28px;
+  margin: 0 0 4px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.cg-embed-title {
+  display: block;
   font-size: 15px;
+  line-height: 1.25;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.cg-embed-overlay p {
+.cg-embed-title-short {
+  display: none;
+}
+
+.cg-embed-body {
   margin: 0;
   font-size: 13px;
+  line-height: 1.35;
   opacity: 0.82;
-  max-width: 28em;
+  max-width: min(28em, 100%);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .cg-embed-open {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   margin-top: 6px;
+  max-width: 100%;
   min-height: 40px;
+  min-width: 40px;
   padding: 8px 14px;
   border: 0;
   border-radius: 8px;
   background: var(--cg-primary, #111);
   color: #fff;
   font: inherit;
+  font-size: 14px;
   font-weight: 650;
+  line-height: 1.2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: center;
   cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.cg-embed-open-icon {
+  display: none;
+  flex: 0 0 auto;
+  line-height: 0;
+}
+
+.cg-embed-open-label {
+  display: inline;
+  max-width: 100%;
+}
+
+.cg-embed-open:focus-visible {
+  outline: 2px solid var(--cg-primary, #111111);
+  outline-offset: 2px;
 }
 
 #consentgate-root .cg-embed-open {
@@ -663,6 +750,99 @@
   border-radius: 8px !important;
   text-align: center !important;
   justify-content: center;
+  max-width: 100% !important;
+  white-space: normal !important;
+}
+
+/*
+ * Fit tiers are driven only by data-cg-fit (ResizeObserver / getBoundingClientRect).
+ * Do not use container-type:size height queries: wraps sized via min-height alone
+ * report a 0px container block size, which falsely matched max-height icon rules.
+ * No-JS / missing attribute = roomy (full logo + title + body + wrapping button).
+ */
+.cg-embed-wrap[data-cg-fit="compact"] .cg-embed-overlay {
+  gap: 6px;
+  padding: 12px 10px;
+}
+
+.cg-embed-wrap[data-cg-fit="compact"] .cg-embed-logo {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+}
+
+.cg-embed-wrap[data-cg-fit="compact"] .cg-embed-title {
+  font-size: 13px;
+}
+
+.cg-embed-wrap[data-cg-fit="compact"] .cg-embed-body {
+  display: none;
+}
+
+.cg-embed-wrap[data-cg-fit="compact"] .cg-embed-open {
+  margin-top: 2px;
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.cg-embed-wrap[data-cg-fit="tight"] .cg-embed-overlay {
+  gap: 4px;
+  padding: 8px 6px;
+}
+
+.cg-embed-wrap[data-cg-fit="tight"] .cg-embed-logo {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.cg-embed-wrap[data-cg-fit="tight"] .cg-embed-title-full {
+  display: none;
+}
+
+.cg-embed-wrap[data-cg-fit="tight"] .cg-embed-title-short {
+  display: inline;
+}
+
+.cg-embed-wrap[data-cg-fit="tight"] .cg-embed-title {
+  font-size: 12px;
+}
+
+.cg-embed-wrap[data-cg-fit="tight"] .cg-embed-body {
+  display: none;
+}
+
+.cg-embed-wrap[data-cg-fit="tight"] .cg-embed-open {
+  margin-top: 0;
+  padding: 6px 8px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+
+.cg-embed-wrap[data-cg-fit="minimal"] .cg-embed-logo,
+.cg-embed-wrap[data-cg-fit="minimal"] .cg-embed-title,
+.cg-embed-wrap[data-cg-fit="minimal"] .cg-embed-body,
+.cg-embed-wrap[data-cg-fit="minimal"] .cg-embed-open-label {
+  display: none;
+}
+
+.cg-embed-wrap[data-cg-fit="minimal"] .cg-embed-overlay {
+  gap: 0;
+  padding: 4px;
+}
+
+.cg-embed-wrap[data-cg-fit="minimal"] .cg-embed-open {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  margin: 0;
+  border-radius: 999px;
+}
+
+.cg-embed-wrap[data-cg-fit="minimal"] .cg-embed-open-icon {
+  display: inline-flex;
 }
 
 .cg-hidden {

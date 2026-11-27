@@ -113,6 +113,8 @@ class ConsentGate_Options {
 			'privacy_page_id'             => 0,
 			'reopen_button'               => true,
 			'show_branding'               => false,
+			'block_external_embeds'       => true,
+			'external_embed_allowlist'    => array(),
 			'trust_geo_headers'          => false,
 			'banner_language'             => 'auto',
 			'locale'                      => 'de',
@@ -499,30 +501,54 @@ class ConsentGate_Options {
 	public static function ui_strings(): array {
 		return array(
 			'de' => array(
-				'emptyCategory' => 'Keine Dienste in dieser Kategorie.',
-				'mapsTitle'     => 'Google Maps ist blockiert',
-				'mapsBody'      => 'Marketing-Cookies erlauben, um die Karte zu sehen.',
-				'appleTitle'    => 'Apple Maps ist blockiert',
-				'linexoTitle'   => 'Linexo ist blockiert',
-				'embedBody'     => 'Erlauben Sie die passende Kategorie, um diesen Inhalt zu sehen.',
-				'youtubeTitle'  => 'YouTube ist blockiert',
-				'youtubeBody'   => 'Marketing-Cookies erlauben, um das Video zu sehen.',
-				'vimeoTitle'    => 'Vimeo ist blockiert',
-				'vimeoBody'     => 'Marketing-Cookies erlauben, um das Video zu sehen.',
-				'openSettings'  => 'Cookie-Einstellungen öffnen',
+				'emptyCategory'   => 'Keine Dienste in dieser Kategorie.',
+				'mapsTitle'       => 'Google Maps ist blockiert',
+				'mapsBody'        => 'Marketing-Cookies erlauben, um die Karte zu sehen.',
+				'appleTitle'      => 'Apple Maps ist blockiert',
+				'linexoTitle'     => 'Linexo ist blockiert',
+				'embedBody'       => 'Erlauben Sie die passende Kategorie, um diesen Inhalt zu sehen.',
+				'youtubeTitle'    => 'YouTube ist blockiert',
+				'youtubeBody'     => 'Marketing-Cookies erlauben, um das Video zu sehen.',
+				'vimeoTitle'      => 'Vimeo ist blockiert',
+				'vimeoBody'       => 'Marketing-Cookies erlauben, um das Video zu sehen.',
+				'instagramTitle'  => 'Instagram ist blockiert',
+				'twitterTitle'    => 'X (Twitter) ist blockiert',
+				'facebookTitle'   => 'Facebook ist blockiert',
+				'tiktokTitle'     => 'TikTok ist blockiert',
+				'pinterestTitle'  => 'Pinterest ist blockiert',
+				'linkedinTitle'   => 'LinkedIn ist blockiert',
+				'calendlyTitle'   => 'Calendly ist blockiert',
+				'spotifyTitle'    => 'Spotify ist blockiert',
+				'soundcloudTitle' => 'SoundCloud ist blockiert',
+				'externalTitle'   => 'Externer Inhalt ist blockiert',
+				'externalBody'    => 'Erlauben Sie Marketing-Cookies, um Inhalte von %s zu sehen.',
+				'blockedService'  => '%s ist blockiert',
+				'openSettings'    => 'Cookie-Einstellungen öffnen',
 			),
 			'en' => array(
-				'emptyCategory' => 'No services in this category.',
-				'mapsTitle'     => 'Google Maps is blocked',
-				'mapsBody'      => 'Allow marketing cookies to show the map.',
-				'appleTitle'    => 'Apple Maps is blocked',
-				'linexoTitle'   => 'Linexo is blocked',
-				'embedBody'     => 'Allow the matching category to show this content.',
-				'youtubeTitle'  => 'YouTube is blocked',
-				'youtubeBody'   => 'Allow marketing cookies to play this video.',
-				'vimeoTitle'    => 'Vimeo is blocked',
-				'vimeoBody'     => 'Allow marketing cookies to play this video.',
-				'openSettings'  => 'Open cookie settings',
+				'emptyCategory'   => 'No services in this category.',
+				'mapsTitle'       => 'Google Maps is blocked',
+				'mapsBody'        => 'Allow marketing cookies to show the map.',
+				'appleTitle'      => 'Apple Maps is blocked',
+				'linexoTitle'     => 'Linexo is blocked',
+				'embedBody'       => 'Allow the matching category to show this content.',
+				'youtubeTitle'    => 'YouTube is blocked',
+				'youtubeBody'     => 'Allow marketing cookies to play this video.',
+				'vimeoTitle'      => 'Vimeo is blocked',
+				'vimeoBody'       => 'Allow marketing cookies to play this video.',
+				'instagramTitle'  => 'Instagram is blocked',
+				'twitterTitle'    => 'X (Twitter) is blocked',
+				'facebookTitle'   => 'Facebook is blocked',
+				'tiktokTitle'     => 'TikTok is blocked',
+				'pinterestTitle'  => 'Pinterest is blocked',
+				'linkedinTitle'   => 'LinkedIn is blocked',
+				'calendlyTitle'   => 'Calendly is blocked',
+				'spotifyTitle'    => 'Spotify is blocked',
+				'soundcloudTitle' => 'SoundCloud is blocked',
+				'externalTitle'   => 'External content is blocked',
+				'externalBody'    => 'Allow marketing cookies to show content from %s.',
+				'blockedService'  => '%s is blocked',
+				'openSettings'    => 'Open cookie settings',
 			),
 		);
 	}
@@ -586,6 +612,9 @@ class ConsentGate_Options {
 			),
 			'blockRules'                 => ConsentGate_Blocker::rules(),
 			'embedGates'                 => ConsentGate_Blocker::embed_gates(),
+			'widgetRegistry'             => ConsentGate_Widgets::registry(),
+			'blockExternalEmbeds'        => (bool) $all['block_external_embeds'],
+			'externalEmbedAllowlist'     => array_values( array_filter( (array) $all['external_embed_allowlist'] ) ),
 			'services'                   => $services,
 		);
 	}
@@ -632,6 +661,7 @@ class ConsentGate_Options {
 			'preferences_enabled',
 			'reopen_button',
 			'show_branding',
+			'block_external_embeds',
 			'trust_geo_headers',
 			'scan_weekly',
 		);
@@ -674,6 +704,23 @@ class ConsentGate_Options {
 		if ( isset( $input['scan_notify_email'] ) ) {
 			$email = sanitize_email( (string) $input['scan_notify_email'] );
 			$output['scan_notify_email'] = is_email( $email ) ? $email : '';
+		}
+
+		if ( isset( $input['external_embed_allowlist'] ) ) {
+			$raw = $input['external_embed_allowlist'];
+			if ( is_array( $raw ) ) {
+				$lines = $raw;
+			} else {
+				$lines = preg_split( '/[\s,]+/', (string) $raw ) ?: array();
+			}
+			$hosts = array();
+			foreach ( $lines as $line ) {
+				$host = self::sanitize_allowlist_host( (string) $line );
+				if ( '' !== $host ) {
+					$hosts[] = $host;
+				}
+			}
+			$output['external_embed_allowlist'] = array_values( array_unique( $hosts ) );
 		}
 
 		if ( isset( $input['locale'] ) ) {
@@ -803,6 +850,57 @@ class ConsentGate_Options {
 		unset( $output['logo_cleared'] );
 
 		return $output;
+	}
+
+	/**
+	 * Sanitize one allowlisted embed host (hostname or *.example.com).
+	 *
+	 * @param string $value Raw host or URL.
+	 */
+	public static function sanitize_allowlist_host( string $value ): string {
+		$value = trim( strtolower( $value ) );
+		if ( '' === $value ) {
+			return '';
+		}
+		if ( str_contains( $value, '://' ) ) {
+			$host  = wp_parse_url( $value, PHP_URL_HOST );
+			$value = is_string( $host ) ? $host : '';
+		} else {
+			$value = preg_replace( '#/.*$#', '', $value ) ?? $value;
+		}
+
+		$wildcard = str_starts_with( $value, '*.' );
+		if ( $wildcard ) {
+			$value = substr( $value, 2 );
+		}
+
+		$value = preg_replace( '/^www\./', '', $value ) ?? $value;
+		$value = preg_replace( '/[^a-z0-9.-]/', '', $value ) ?? '';
+		if ( '' === $value || ! str_contains( $value, '.' ) ) {
+			return '';
+		}
+
+		return $wildcard ? '*.' . $value : $value;
+	}
+
+	/**
+	 * Whether a hostname is covered by an allowlist entry (exact, parent, or *.base).
+	 *
+	 * @param string $host  Normalized hostname without leading www.
+	 * @param string $entry Sanitized allowlist entry.
+	 */
+	public static function host_matches_allowlist_entry( string $host, string $entry ): bool {
+		$host  = strtolower( preg_replace( '/^www\./', '', $host ) ?? $host );
+		$entry = self::sanitize_allowlist_host( $entry );
+		if ( '' === $host || '' === $entry ) {
+			return false;
+		}
+		if ( str_starts_with( $entry, '*.' ) ) {
+			$base = substr( $entry, 2 );
+			return $host === $base || str_ends_with( $host, '.' . $base );
+		}
+
+		return $host === $entry || str_ends_with( $host, '.' . $entry );
 	}
 
 	/**

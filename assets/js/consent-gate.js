@@ -760,6 +760,7 @@
   function showReopen() {
     if (config.showReopen === false) return;
     if (document.getElementById("consentgate-reopen")) return;
+    var colors = config.colors || {};
     var btn = el(
       "button",
       {
@@ -768,7 +769,13 @@
           "cg-reopen" +
           (config.position === "corner" ? " cg-reopen--right" : ""),
         type: "button",
-        style: "--cg-primary:" + config.colors.primary,
+        style:
+          "--cg-bg:" +
+          (colors.background || "#ffffff") +
+          ";--cg-fg:" +
+          (colors.text || "#1a1a1a") +
+          ";--cg-primary:" +
+          (colors.primary || "#111111"),
         "aria-label": config.texts.reopenLabel,
         onclick: function () {
           openBanner();

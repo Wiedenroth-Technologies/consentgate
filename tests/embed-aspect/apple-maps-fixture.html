@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>ConsentGate Apple Maps MapKit fixture</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 24px;
+			font-family: system-ui, sans-serif;
+			background: #f6f7f7;
+		}
+		.layout {
+			display: grid;
+			gap: 24px;
+			max-width: 720px;
+		}
+		#map {
+			height: 400px;
+			width: 100%;
+			background: #dfe3e8;
+		}
+		#meta {
+			margin: 0;
+			font-size: 13px;
+			color: #1e1e1e;
+			white-space: pre-wrap;
+		}
+		/* Theme-like transparent buttons — reopen must still stay visible. */
+		button {
+			background-color: transparent;
+			border: 0;
+			color: inherit;
+		}
+	</style>
+	<link id="cg-css" rel="stylesheet" href="../../assets/css/consent-gate.css" />
+	<script>
+		window.__CONSENTGATE__ = {
+			shopLocale: "de_DE",
+			config: {
+				languageMode: "de",
+				locale: "de",
+				position: "corner",
+				colors: {
+					primary: "#27335a",
+					background: "#ffffff",
+					text: "#1a1a1a",
+					acceptBg: "#27335a",
+					acceptText: "#ffffff",
+					rejectBg: "#ffffff",
+					rejectText: "#27335a"
+				},
+				showReopen: true,
+				texts: { reopenLabel: "Cookie-Einstellungen" },
+				ui: {
+					de: {
+						appleTitle: "Apple Maps ist blockiert",
+						embedBody: "Erlauben Sie die passende Kategorie, um diesen Inhalt zu sehen.",
+						openSettings: "Cookie-Einstellungen öffnen",
+						youtubeTitle: "YouTube ist blockiert",
+						youtubeBody: "Marketing-Cookies erlauben, um das Video zu sehen."
+					}
+				},
+				embedGates: {
+					apple_maps: "marketing",
+					youtube: "marketing",
+					google_maps: "marketing",
+					linexo: "marketing",
+					vimeo: "marketing",
+					external_content: "marketing"
+				},
+				widgetRegistry: [
+					{
+						id: "apple_maps",
+						library: ["apple-mapkit.com", "mapkit-stub.js"],
+						containers: [],
+						inline: "\\bmapkit\\s*\\.",
+						mapTarget: "mapkit\\.Map\\s*\\(\\s*[\"']([^\"']+)[\"']",
+						reinit: ""
+					}
+				],
+				blockExternalEmbeds: true,
+				externalEmbedAllowlist: [],
+				blockRules: [
+					{
+						id: "apple_maps",
+						cat: "marketing",
+						h: ["maps.apple.com", "snapshot.apple-mapkit.com", "cdn.apple-mapkit.com"],
+						c: []
+					},
+					{
+						id: "youtube",
+						cat: "marketing",
+						h: ["youtube.com", "www.youtube.com", "youtube-nocookie.com", "youtu.be"],
+						c: []
+					}
+				],
+				purposePolicies: {
+					statistics: "with_consent",
+					marketing: "with_consent",
+					preferences: "with_consent"
+				}
+			}
+		};
+	</script>
+	<script src="../../assets/js/consent-gate-blocker.js"></script>
+</head>
+<body>
+	<div class="layout">
+		<section aria-label="MapKit">
+			<div id="map" style="height: 400px;"></div>
+			<script type="text/plain" data-consent-gate="marketing" data-cg-blocked="marketing" data-cg-kind="apple_maps" data-cg-src="./mapkit-stub.js"></script>
+			<script type="text/plain" data-consent-gate="marketing" data-cg-blocked="marketing" data-cg-kind="apple_maps">
+window.__CG_MAPKIT_INIT__ = true;
+mapkit.init({ authorizationCallback: function (done) { done("test"); } });
+var map = new mapkit.Map("map");
+map.showItems([]);
+			</script>
+		</section>
+
+		<section aria-label="YouTube regression">
+			<figure class="wp-block-embed is-type-video is-provider-youtube wp-block-embed-youtube wp-embed-aspect-16-9 wp-has-aspect-ratio">
+				<div class="wp-block-embed__wrapper">
+					<iframe
+						title="YouTube video"
+						width="640"
+						height="360"
+						data-cg-blocked="marketing"
+						data-cg-src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+						data-cg-kind="youtube"
+						allowfullscreen
+					></iframe>
+				</div>
+			</figure>
+		</section>
+
+		<section aria-label="Apple Maps iframe">
+			<iframe
+				id="apple-iframe"
+				title="Apple Maps"
+				width="600"
+				height="320"
+				data-cg-blocked="marketing"
+				data-cg-src="https://maps.apple.com/embed?q=Hildesheim"
+				data-cg-kind="apple_maps"
+			></iframe>
+		</section>
+	</div>
+	<pre id="meta"></pre>
+	<script>
+		(function () {
+			function measure() {
+				var map = document.getElementById("map");
+				var wrap = map && map.closest ? map.closest(".cg-embed-wrap") : null;
+				var overlay = wrap ? wrap.querySelector(".cg-embed-overlay") : null;
+				var ytWrap = document.querySelector(".wp-block-embed .cg-embed-wrap");
+				var appleIframe = document.getElementById("apple-iframe");
+				var appleIframeWrap = appleIframe && appleIframe.parentNode && appleIframe.parentNode.classList.contains("cg-embed-wrap")
+					? appleIframe.parentNode
+					: null;
+				var reopen = document.getElementById("consentgate-reopen");
+				var reopenStyle = reopen ? getComputedStyle(reopen) : null;
+				return {
+					mapHasWidget: Boolean(map && map.getAttribute("data-cg-widget") === "apple_maps"),
+					mapWrap: Boolean(wrap),
+					mapOverlayTitle: overlay && overlay.querySelector("strong") ? overlay.querySelector("strong").textContent : "",
+					mapMinHeight: wrap ? wrap.style.minHeight : "",
+					mapReady: Boolean(map && map.getAttribute("data-cg-map-ready") === "1"),
+					mapInitFlag: Boolean(window.__CG_MAPKIT_INIT__),
+					youtubeWrap: Boolean(ytWrap),
+					appleIframeWrap: Boolean(appleIframeWrap),
+					appleIframeOverlay: Boolean(appleIframeWrap && appleIframeWrap.querySelector(".cg-embed-overlay")),
+					reopenBg: reopenStyle ? reopenStyle.backgroundColor : "",
+					reopenColor: reopenStyle ? reopenStyle.color : "",
+					reopenExists: Boolean(reopen)
+				};
+			}
+
+			window.__CG_APPLE_FIXTURE__ = {
+				measure: measure,
+				consentMarketing: function () {
+					if (window.__CONSENTGATE_BLOCKER__ && typeof window.__CONSENTGATE_BLOCKER__.release === "function") {
+						window.__CONSENTGATE_BLOCKER__.release({
+							statistics: false,
+							marketing: true,
+							preferences: false
+						});
+					}
+				},
+				showReopen: function () {
+					var existing = document.getElementById("consentgate-reopen");
+					if (existing) return;
+					var btn = document.createElement("button");
+					btn.id = "consentgate-reopen";
+					btn.className = "cg-reopen cg-reopen--right";
+					btn.type = "button";
+					btn.setAttribute("aria-label", "Cookie-Einstellungen");
+					btn.style.cssText = "--cg-bg:#ffffff;--cg-fg:#1a1a1a;--cg-primary:#27335a";
+					btn.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/></svg>';
+					document.body.appendChild(btn);
+				}
+			};
+
+			document.getElementById("meta").textContent = JSON.stringify(measure(), null, 2);
+		})();
+	</script>
+</body>
+</html>

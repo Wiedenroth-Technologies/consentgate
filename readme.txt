@@ -4,7 +4,7 @@ Tags: cookie consent, cookie banner, cookie notice, GDPR, dsgvo
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.0.3
+Stable tag: 1.0.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -119,6 +119,13 @@ If the scan has stored Google measurement IDs, the plugin loads the Google tag s
 
 == Changelog ==
 
+= 1.0.4 =
+* Show a placeholder for blocked Apple Maps (MapKit) embeds and re-initialize the map after consent.
+* Block external embeds and widgets until consent, with an allowlist for hosts you want to permit.
+* Make placeholders adapt in narrow and side-by-side layouts, including a compact notice and a clickable icon in very tight boxes.
+* Give the cookie settings reopen button the same solid background as the banner.
+* Fix ConsentGate's own scripts being treated as widgets after consent, and keep Instagram embed iframes intact when unwrapping.
+
 = 1.0.3 =
 * Fixed a large empty space above the blocked YouTube placeholder in responsive WordPress embeds. The placeholder now uses the embed's aspect ratio.
 
@@ -138,6 +145,9 @@ If the scan has stored Google measurement IDs, the plugin loads the Google tag s
 * Initial release
 
 == Upgrade Notice ==
+
+= 1.0.4 =
+Adds placeholders for blocked embeds including Apple Maps, a host allowlist, responsive placeholders in narrow layouts, and a solid background on the cookie reopen button.
 
 = 1.0.3 =
 Fixes the empty space above blocked video embeds.
