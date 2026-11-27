@@ -372,6 +372,27 @@
         return null;
       }
 
+      function serviceShortName(kind, locale, host) {
+        var map = {
+          google_maps: "Google Maps",
+          apple_maps: "Apple Maps",
+          linexo: "Linexo",
+          youtube: "YouTube",
+          vimeo: "Vimeo",
+          instagram: "Instagram",
+          twitter: "X",
+          facebook: "Facebook",
+          tiktok: "TikTok",
+          pinterest: "Pinterest",
+          calendly: "Calendly",
+          spotify: "Spotify",
+          soundcloud: "SoundCloud",
+          linkedin: "LinkedIn",
+          external_content: host || (locale === "en" ? "External content" : "Externer Inhalt")
+        };
+        return map[kind] || host || kind || (locale === "en" ? "Content" : "Inhalt");
+      }
+
       function serviceTitle(kind, locale, ui, host) {
         var map = {
           google_maps: ui.mapsTitle || (locale === "en" ? "Google Maps is blocked" : "Google Maps ist blockiert"),
@@ -418,12 +439,51 @@
         return logos[kind] || logos._placeholder || "";
       }
 
+      function fitEmbedWrap(wrap) {
+        if (!wrap || !wrap.getBoundingClientRect) return;
+        var rect = wrap.getBoundingClientRect();
+        var w = rect.width || wrap.clientWidth || 0;
+        var h = rect.height || wrap.clientHeight || 0;
+        var fit = "roomy";
+        if (w > 0 && w < 160) fit = "minimal";
+        else if ((w > 0 && w < 220) || (h > 0 && h < 140)) fit = "tight";
+        else if (w > 0 && w < 320) fit = "compact";
+        if (h > 0 && h < 100) fit = "minimal";
+        if (wrap.getAttribute("data-cg-fit") !== fit) {
+          nativeSetAttr.call(wrap, "data-cg-fit", fit);
+        }
+      }
+
+      function observeEmbedFit(wrap) {
+        fitEmbedWrap(wrap);
+        if (typeof ResizeObserver === "function") {
+          if (!wrap.__cgFitObs) {
+            wrap.__cgFitObs = new ResizeObserver(function () {
+              fitEmbedWrap(wrap);
+            });
+            try { wrap.__cgFitObs.observe(wrap); } catch (e) {}
+          }
+        } else if (!wrap.__cgFitTimer) {
+          wrap.__cgFitTimer = setInterval(function () {
+            if (!wrap.isConnected) {
+              clearInterval(wrap.__cgFitTimer);
+              return;
+            }
+            fitEmbedWrap(wrap);
+          }, 500);
+        }
+      }
+
       function appendEmbedOverlay(wrap, kind, host) {
         var locale = embedLocale();
         var ui = (config.ui && config.ui[locale]) || {};
+        var shortName = serviceShortName(kind, locale, host);
+        var openLabel = ui.openSettings || (locale === "en" ? "Open cookie settings" : "Cookie-Einstellungen öffnen");
+        var a11y = openLabel + " — " + shortName;
         var overlay = nativeCreate("div");
         overlay.className = "cg-embed-overlay";
         overlay.setAttribute("role", "region");
+        overlay.setAttribute("aria-label", shortName);
         var logo = logoForKind(kind);
         if (logo) {
           var img = nativeCreate("img");
@@ -435,13 +495,32 @@
           overlay.appendChild(img);
         }
         var title = nativeCreate("strong");
-        title.textContent = serviceTitle(kind, locale, ui, host);
+        title.className = "cg-embed-title";
+        var titleFull = nativeCreate("span");
+        titleFull.className = "cg-embed-title-full";
+        titleFull.textContent = serviceTitle(kind, locale, ui, host);
+        var titleShort = nativeCreate("span");
+        titleShort.className = "cg-embed-title-short";
+        titleShort.textContent = shortName;
+        title.appendChild(titleFull);
+        title.appendChild(titleShort);
         var body = nativeCreate("p");
+        body.className = "cg-embed-body";
         body.textContent = serviceBody(kind, locale, ui, host);
         var btn = nativeCreate("button");
         btn.type = "button";
         btn.className = "cg-embed-open";
-        btn.textContent = ui.openSettings || (locale === "en" ? "Open cookie settings" : "Cookie-Einstellungen öffnen");
+        btn.setAttribute("aria-label", a11y);
+        btn.setAttribute("title", a11y);
+        var btnIcon = nativeCreate("span");
+        btnIcon.className = "cg-embed-open-icon";
+        btnIcon.setAttribute("aria-hidden", "true");
+        btnIcon.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3.2a2.1 2.1 0 1 1-2.1 2.1A2.1 2.1 0 0 1 12 5.2zm0 13.1a6.4 6.4 0 0 1-5.1-2.6 1 1 0 0 1 .2-1.3 5.7 5.7 0 0 1 9.8 0 1 1 0 0 1 .2 1.3A6.4 6.4 0 0 1 12 18.3z"/></svg>';
+        var btnLabel = nativeCreate("span");
+        btnLabel.className = "cg-embed-open-label";
+        btnLabel.textContent = openLabel;
+        btn.appendChild(btnIcon);
+        btn.appendChild(btnLabel);
         btn.addEventListener("click", function () {
           if (window.ConsentGate && typeof window.ConsentGate.open === "function") window.ConsentGate.open();
         });
@@ -449,6 +528,7 @@
         overlay.appendChild(body);
         overlay.appendChild(btn);
         wrap.appendChild(overlay);
+        observeEmbedFit(wrap);
       }
 
       function wrapMapsPlaceholder(iframe) {
@@ -525,6 +605,7 @@
         parent.insertBefore(wrap, el);
         wrap.appendChild(el);
         appendEmbedOverlay(wrap, widgetKey, "");
+        observeEmbedFit(wrap);
       }
 
       function deferWidgetInlineScripts(root) {

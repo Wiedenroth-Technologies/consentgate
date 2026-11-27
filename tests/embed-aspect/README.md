@@ -32,6 +32,12 @@ node tests/embed-aspect/prove-widgets.mjs
 node tests/embed-aspect/prove-self-scripts.mjs
 ```
 
+## Narrow column placeholders (mobile side-by-side)
+
+```bash
+node tests/embed-aspect/prove-narrow-columns.mjs
+```
+
 ## PHP proofs
 
 ```bash
