@@ -1,28 +1,34 @@
 # Embed proofs (Playwright)
 
-## YouTube aspect-ratio
-
-Reproduces the WordPress Core `::before` spacer colliding with `.cg-embed-wrap`.
-
 ```bash
 npm i playwright
 npx playwright install chromium
-PLAYWRIGHT_MODULE="$(pwd)/node_modules/playwright" node tests/embed-aspect/prove.mjs
+export PLAYWRIGHT_MODULE="$(pwd)/node_modules/playwright"
 ```
 
-## Apple Maps (MapKit) placeholder
-
-Covers MapKit JS `#map` containers (no iframe), Apple Maps iframes, YouTube
-placeholder still wrapping, and reopen-button banner background contrast.
+## YouTube aspect-ratio
 
 ```bash
-PLAYWRIGHT_MODULE="$(pwd)/node_modules/playwright" node tests/embed-aspect/prove-apple-maps.mjs
+node tests/embed-aspect/prove.mjs
 ```
 
-## PHP MapKit inline gating
+## Apple Maps (MapKit) + reopen contrast
+
+```bash
+node tests/embed-aspect/prove-apple-maps.mjs
+```
+
+## Widget registry (Instagram / X / TikTok / unknown iframe)
+
+```bash
+node tests/embed-aspect/prove-widgets.mjs
+```
+
+## PHP proofs
 
 ```bash
 php tests/php/prove-mapkit-inline.php
+php tests/php/prove-external-iframes.php
 ```
 
-Artifacts (screenshots + JSON) go to `/opt/cursor/artifacts` or `$CG_ARTIFACTS`.
+Artifacts go to `/opt/cursor/artifacts` or `$CG_ARTIFACTS`.

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="de" class="wp-embed-responsive">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>ConsentGate widget registry fixture</title>
+	<style>
+		body { margin: 0; padding: 24px; font-family: system-ui, sans-serif; background: #f6f7f7; }
+		.layout { display: grid; gap: 24px; max-width: 720px; }
+		#map { height: 400px; width: 100%; background: #dfe3e8; }
+		blockquote { margin: 0; min-height: 120px; background: #fff; padding: 12px; }
+		button { background-color: transparent; border: 0; color: inherit; }
+		.wp-block-embed { margin: 0; max-width: 640px; }
+		.wp-block-embed__wrapper { position: relative; }
+		.wp-embed-responsive .wp-has-aspect-ratio .wp-block-embed__wrapper::before {
+			content: ""; display: block; padding-top: 56.25%;
+		}
+		.wp-embed-responsive .wp-has-aspect-ratio .wp-block-embed__wrapper iframe {
+			position: absolute; inset: 0; width: 100%; height: 100%;
+		}
+	</style>
+	<link rel="stylesheet" href="../../assets/css/consent-gate.css" />
+	<script>
+		window.__CONSENTGATE__ = {
+			shop: "example.com",
+			shopLocale: "de_DE",
+			logos: { _placeholder: "../../assets/logos/logo-placeholder.svg" },
+			config: {
+				languageMode: "de",
+				locale: "de",
+				position: "corner",
+				colors: { primary: "#27335a", background: "#ffffff", text: "#1a1a1a", acceptBg: "#27335a", acceptText: "#ffffff", rejectBg: "#ffffff", rejectText: "#27335a" },
+				ui: {
+					de: {
+						appleTitle: "Apple Maps ist blockiert",
+						instagramTitle: "Instagram ist blockiert",
+						twitterTitle: "X (Twitter) ist blockiert",
+						tiktokTitle: "TikTok ist blockiert",
+						youtubeTitle: "YouTube ist blockiert",
+						youtubeBody: "Marketing-Cookies erlauben, um das Video zu sehen.",
+						externalTitle: "Externer Inhalt ist blockiert",
+						externalBody: "Erlauben Sie Marketing-Cookies, um Inhalte von %s zu sehen.",
+						embedBody: "Erlauben Sie die passende Kategorie, um diesen Inhalt zu sehen.",
+						openSettings: "Cookie-Einstellungen öffnen",
+						mapsTitle: "Google Maps ist blockiert",
+						mapsBody: "Marketing-Cookies erlauben, um die Karte zu sehen."
+					}
+				},
+				embedGates: {
+					apple_maps: "marketing",
+					instagram: "marketing",
+					twitter: "marketing",
+					tiktok: "marketing",
+					youtube: "marketing",
+					google_maps: "marketing",
+					external_content: "marketing",
+					linexo: "marketing",
+					vimeo: "marketing",
+					facebook: "marketing",
+					calendly: "marketing",
+					spotify: "marketing",
+					soundcloud: "marketing",
+					pinterest: "marketing",
+					linkedin: "marketing"
+				},
+				widgetRegistry: [
+					{ id: "apple_maps", library: ["apple-mapkit.com", "mapkit-stub.js"], containers: [], inline: "\\bmapkit\\s*\\.", mapTarget: "mapkit\\.Map\\s*\\(\\s*[\"']([^\"']+)[\"']", reinit: "" },
+					{ id: "instagram", library: ["instagram.com/embed.js"], containers: ["blockquote.instagram-media"], inline: "", mapTarget: "", reinit: "instagram" },
+					{ id: "twitter", library: ["platform.twitter.com/widgets.js"], containers: ["blockquote.twitter-tweet"], inline: "", mapTarget: "", reinit: "twitter" },
+					{ id: "tiktok", library: ["tiktok.com/embed.js"], containers: ["blockquote.tiktok-embed"], inline: "", mapTarget: "", reinit: "tiktok" }
+				],
+				blockExternalEmbeds: true,
+				externalEmbedAllowlist: ["allowed.example"],
+				blockRules: [
+					{ id: "apple_maps", cat: "marketing", h: ["apple-mapkit.com"], c: [] },
+					{ id: "instagram", cat: "marketing", h: ["instagram.com/embed.js"], c: [] },
+					{ id: "twitter", cat: "marketing", h: ["platform.twitter.com"], c: [] },
+					{ id: "tiktok", cat: "marketing", h: ["tiktok.com/embed.js"], c: [] },
+					{ id: "youtube", cat: "marketing", h: ["youtube.com", "youtube-nocookie.com"], c: [] },
+					{ id: "google_maps", cat: "marketing", h: ["maps.googleapis.com", "maps.google.com"], c: [] }
+				],
+				purposePolicies: { statistics: "with_consent", marketing: "with_consent", preferences: "with_consent" }
+			}
+		};
+	</script>
+	<script src="../../assets/js/consent-gate-blocker.js"></script>
+</head>
+<body>
+	<div class="layout">
+		<section aria-label="MapKit">
+			<div id="map" style="height: 400px;"></div>
+			<script type="text/plain" data-consent-gate="marketing" data-cg-blocked="marketing" data-cg-kind="apple_maps" data-cg-src="./mapkit-stub.js"></script>
+			<script type="text/plain" data-consent-gate="marketing" data-cg-blocked="marketing" data-cg-kind="apple_maps">
+window.__CG_MAPKIT_INIT__ = true;
+mapkit.init({ authorizationCallback: function (done) { done("test"); } });
+var map = new mapkit.Map("map");
+map.showItems([]);
+			</script>
+		</section>
+
+		<section aria-label="Instagram">
+			<blockquote class="instagram-media" data-instgrm-permalink="https://www.instagram.com/p/demo/">IG</blockquote>
+			<script type="text/plain" data-consent-gate="marketing" data-cg-blocked="marketing" data-cg-kind="instagram" data-cg-src="./stubs/instagram-embed.js"></script>
+		</section>
+
+		<section aria-label="Twitter">
+			<blockquote class="twitter-tweet">Tweet</blockquote>
+			<script type="text/plain" data-consent-gate="marketing" data-cg-blocked="marketing" data-cg-kind="twitter" data-cg-src="./stubs/twitter-widgets.js"></script>
+		</section>
+
+		<section aria-label="TikTok">
+			<blockquote class="tiktok-embed">TT</blockquote>
+			<script type="text/plain" data-consent-gate="marketing" data-cg-blocked="marketing" data-cg-kind="tiktok" data-cg-src="./stubs/tiktok-embed.js"></script>
+		</section>
+
+		<section aria-label="YouTube">
+			<figure class="wp-block-embed is-type-video is-provider-youtube wp-block-embed-youtube wp-embed-aspect-16-9 wp-has-aspect-ratio">
+				<div class="wp-block-embed__wrapper">
+					<iframe title="YouTube video" width="640" height="360" data-cg-blocked="marketing" data-cg-src="https://www.youtube.com/embed/dQw4w9WgXcQ" data-cg-kind="youtube"></iframe>
+				</div>
+			</figure>
+		</section>
+
+		<section aria-label="Google Maps">
+			<iframe id="gmaps" title="Google Maps" width="600" height="300" data-cg-blocked="marketing" data-cg-src="https://www.google.com/maps/embed?pb=demo" data-cg-kind="google_maps"></iframe>
+		</section>
+
+		<section aria-label="Unknown iframe">
+			<iframe id="unknown" title="Unknown" width="600" height="240" src="https://weird-tracker.example/embed/player"></iframe>
+		</section>
+
+		<section aria-label="Allowlisted iframe">
+			<iframe id="allowed" title="Allowed" width="600" height="240" src="https://allowed.example/player"></iframe>
+		</section>
+
+		<section aria-label="Same origin">
+			<iframe id="local" title="Local" width="600" height="120" src="https://www.example.com/oembed/post"></iframe>
+		</section>
+	</div>
+	<pre id="meta"></pre>
+	<script>
+		(function () {
+			function measure() {
+				function wrapFor(sel) {
+					var el = document.querySelector(sel);
+					if (!el) return null;
+					return el.closest ? el.closest(".cg-embed-wrap") : (el.parentNode && el.parentNode.classList.contains("cg-embed-wrap") ? el.parentNode : null);
+				}
+				var map = document.getElementById("map");
+				var unknown = document.getElementById("unknown");
+				var allowed = document.getElementById("allowed");
+				var local = document.getElementById("local");
+				return {
+					mapWrap: Boolean(wrapFor("#map")),
+					mapReady: map && map.getAttribute("data-cg-map-ready") === "1",
+					mapInit: Boolean(window.__CG_MAPKIT_INIT__),
+					igWrap: Boolean(wrapFor("blockquote.instagram-media")),
+					igTitle: (wrapFor("blockquote.instagram-media") || document).querySelector(".cg-embed-overlay strong") && wrapFor("blockquote.instagram-media") ? wrapFor("blockquote.instagram-media").querySelector("strong").textContent : "",
+					twWrap: Boolean(wrapFor("blockquote.twitter-tweet")),
+					ttWrap: Boolean(wrapFor("blockquote.tiktok-embed")),
+					ytWrap: Boolean(document.querySelector(".wp-block-embed .cg-embed-wrap")),
+					gmapsWrap: Boolean(wrapFor("#gmaps")),
+					unknownWrap: Boolean(wrapFor("#unknown")),
+					unknownKind: unknown ? unknown.getAttribute("data-cg-kind") : "",
+					unknownHost: unknown ? unknown.getAttribute("data-cg-host") : "",
+					unknownBlocked: unknown ? unknown.hasAttribute("data-cg-blocked") : false,
+					allowedBlocked: allowed ? allowed.hasAttribute("data-cg-blocked") : false,
+					localBlocked: local ? local.hasAttribute("data-cg-blocked") : false,
+					igProcessed: Boolean(window.__CG_IG_PROCESSED__),
+					twLoaded: Boolean(window.__CG_TW_LOADED__),
+					ttRendered: Boolean(window.__CG_TT_RENDERED__)
+				};
+			}
+			window.__CG_WIDGET_FIXTURE__ = {
+				measure: measure,
+				consentMarketing: function () {
+					window.__CONSENTGATE_BLOCKER__.release({ statistics: false, marketing: true, preferences: false });
+				}
+			};
+			document.getElementById("meta").textContent = JSON.stringify(measure(), null, 2);
+		})();
+	</script>
+</body>
+</html>

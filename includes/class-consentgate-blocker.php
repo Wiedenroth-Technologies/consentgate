@@ -187,7 +187,7 @@ class ConsentGate_Blocker {
 	 */
 	public static function embed_gates(): array {
 		$gates = array();
-		foreach ( array( 'google_maps', 'apple_maps', 'linexo', 'youtube', 'vimeo' ) as $key ) {
+		foreach ( ConsentGate_Widgets::embed_keys() as $key ) {
 			$gates[ $key ] = self::category_for_key( $key );
 		}
 

@@ -37,7 +37,7 @@ define( 'CONSENTGATE_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 define( 'CONSENTGATE_SLUG', 'wiedenroth-technologies-consentgate' );
 define( 'CONSENTGATE_OPTION_KEY', 'consentgate_settings' );
 define( 'CONSENTGATE_PRODUCT_URL', 'https://wiedenroth.tech/software/consentgate' );
-define( 'CONSENTGATE_DB_VERSION', '1.1.0' );
+define( 'CONSENTGATE_DB_VERSION', '1.2.0' );
 
 require_once CONSENTGATE_PLUGIN_DIR . 'includes/class-consentgate-autoloader.php';
 ConsentGate_Autoloader::register();

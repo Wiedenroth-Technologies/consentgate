@@ -30,6 +30,7 @@ class ConsentGate_Autoloader {
 		'ConsentGate_Options'            => 'includes/class-consentgate-options.php',
 		'ConsentGate_Admin'              => 'includes/admin/class-consentgate-admin.php',
 		'ConsentGate_Catalog'            => 'includes/class-consentgate-catalog.php',
+		'ConsentGate_Widgets'            => 'includes/class-consentgate-widgets.php',
 		'ConsentGate_Services'           => 'includes/class-consentgate-services.php',
 		'ConsentGate_Scan'               => 'includes/class-consentgate-scan.php',
 		'ConsentGate_Blocker'            => 'includes/class-consentgate-blocker.php',
@@ -42,7 +43,7 @@ class ConsentGate_Autoloader {
 		'ConsentGate_WooCommerce'        => 'includes/class-consentgate-woocommerce.php',
 		'ConsentGate_Geo'                => 'includes/class-consentgate-geo.php',
 		'ConsentGate_Policy_Scan'        => 'includes/class-consentgate-policy-scan.php',
-		'ConsentGate_Privacy'           => 'includes/class-consentgate-privacy.php',
+		'ConsentGate_Privacy'            => 'includes/class-consentgate-privacy.php',
 	);
 
 	/**

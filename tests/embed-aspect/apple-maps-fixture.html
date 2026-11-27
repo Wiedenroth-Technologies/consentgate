@@ -67,8 +67,21 @@
 					youtube: "marketing",
 					google_maps: "marketing",
 					linexo: "marketing",
-					vimeo: "marketing"
+					vimeo: "marketing",
+					external_content: "marketing"
 				},
+				widgetRegistry: [
+					{
+						id: "apple_maps",
+						library: ["apple-mapkit.com", "mapkit-stub.js"],
+						containers: [],
+						inline: "\\bmapkit\\s*\\.",
+						mapTarget: "mapkit\\.Map\\s*\\(\\s*[\"']([^\"']+)[\"']",
+						reinit: ""
+					}
+				],
+				blockExternalEmbeds: true,
+				externalEmbedAllowlist: [],
 				blockRules: [
 					{
 						id: "apple_maps",

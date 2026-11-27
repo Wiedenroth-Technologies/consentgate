@@ -170,30 +170,18 @@ class ConsentGate_Frontend {
 		$html = $this->gate_embeds( $html );
 		$html = $this->gate_raw_assets( $html );
 
-		return $this->gate_mapkit_inline_scripts( $html );
+		return $this->gate_widget_inline_scripts( $html );
 	}
 
 	/**
-	 * Defer inline MapKit bootstrap scripts until Apple Maps consent.
-	 *
-	 * MapKit embeds are often a library script plus an inline `mapkit.Map("…")`
-	 * initializer. The library is gated via src; the inline script must also be
-	 * deferred or the map never re-initializes after consent.
+	 * Defer inline widget bootstraps (MapKit, Calendly, …) until consent.
 	 *
 	 * @param string $html Full HTML.
 	 */
-	private function gate_mapkit_inline_scripts( string $html ): string {
-		$category = ConsentGate_Blocker::category_for_key( 'apple_maps' );
-		if ( '' === $category ) {
-			return $html;
-		}
-		if ( ! str_contains( strtolower( $html ), 'mapkit' ) ) {
-			return $html;
-		}
-
+	private function gate_widget_inline_scripts( string $html ): string {
 		$updated = preg_replace_callback(
 			'/<script\b([^>]*)>(.*?)<\/script>/is',
-			static function ( array $matches ) use ( $category ): string {
+			static function ( array $matches ): string {
 				$attrs = $matches[1];
 				$body  = $matches[2];
 
@@ -209,7 +197,15 @@ class ConsentGate_Frontend {
 				if ( preg_match( '/\btype\s*=\s*([\'"])[^\'"]*json/i', $attrs ) ) {
 					return $matches[0];
 				}
-				if ( ! preg_match( '/\bmapkit\s*\./i', $body ) ) {
+
+				$widget = ConsentGate_Widgets::widget_for_inline( $body );
+				if ( ! is_array( $widget ) ) {
+					return $matches[0];
+				}
+
+				$key      = (string) $widget['id'];
+				$category = ConsentGate_Blocker::category_for_key( $key );
+				if ( '' === $category ) {
 					return $matches[0];
 				}
 
@@ -218,7 +214,7 @@ class ConsentGate_Frontend {
 					$attrs = $matches[1];
 				}
 
-				return '<script type="text/plain" data-consent-gate="' . esc_attr( $category ) . '" data-cg-blocked="' . esc_attr( $category ) . '" data-cg-kind="apple_maps"' . $attrs . '>' . $body . '</script>';
+				return '<script type="text/plain" data-consent-gate="' . esc_attr( $category ) . '" data-cg-blocked="' . esc_attr( $category ) . '" data-cg-kind="' . esc_attr( $key ) . '"' . $attrs . '>' . $body . '</script>';
 			},
 			$html
 		);
@@ -299,16 +295,19 @@ class ConsentGate_Frontend {
 	 */
 	private function asset_category( string $src ): string {
 		$entry = ConsentGate_Catalog::entry_for_src( $src );
-		$embed = array( 'google_maps', 'apple_maps', 'linexo', 'youtube', 'vimeo' );
-		if ( is_array( $entry ) && in_array( (string) $entry['key'], $embed, true ) ) {
+		if ( is_array( $entry ) && in_array( (string) $entry['key'], ConsentGate_Widgets::embed_keys(), true ) ) {
 			return ConsentGate_Blocker::category_for_embed( $src );
+		}
+		$widget = ConsentGate_Widgets::widget_for_library_src( $src );
+		if ( is_array( $widget ) ) {
+			return ConsentGate_Blocker::category_for_key( (string) $widget['id'] );
 		}
 
 		return ConsentGate_Blocker::category_for_src( $src );
 	}
 
 	/**
-	 * Strip tracker iframe src so the browser never loads Maps/YouTube/Vimeo before consent.
+	 * Strip gated iframe src so embeds never load before consent.
 	 *
 	 * @param mixed $html HTML.
 	 */
@@ -341,16 +340,16 @@ class ConsentGate_Frontend {
 				continue;
 			}
 
-			$category = ConsentGate_Blocker::category_for_embed( $src );
-			if ( '' === $category ) {
+			$decision = self::iframe_gate_decision( $src );
+			if ( null === $decision ) {
 				continue;
 			}
 
-			$entry = ConsentGate_Catalog::entry_for_src( $src );
-			$processor->set_attribute( 'data-cg-blocked', $category );
+			$processor->set_attribute( 'data-cg-blocked', $decision['category'] );
 			$processor->set_attribute( 'data-cg-src', $src );
-			if ( is_array( $entry ) ) {
-				$processor->set_attribute( 'data-cg-kind', (string) $entry['key'] );
+			$processor->set_attribute( 'data-cg-kind', $decision['kind'] );
+			if ( ! empty( $decision['host'] ) ) {
+				$processor->set_attribute( 'data-cg-host', $decision['host'] );
 			}
 			$processor->remove_attribute( 'src' );
 			$processor->remove_attribute( 'data-src' );
@@ -358,6 +357,82 @@ class ConsentGate_Frontend {
 		}
 
 		return $processor->get_updated_html();
+	}
+
+	/**
+	 * Decide whether an iframe URL must be gated.
+	 *
+	 * @param string $src Iframe URL.
+	 * @return array{category: string, kind: string, host: string}|null
+	 */
+	public static function iframe_gate_decision( string $src ): ?array {
+		$src = trim( html_entity_decode( $src, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+		if ( '' === $src || str_starts_with( $src, 'about:' ) || str_starts_with( $src, 'javascript:' ) ) {
+			return null;
+		}
+		if ( str_starts_with( $src, '#' ) || str_starts_with( $src, 'data:' ) ) {
+			return null;
+		}
+
+		$host = wp_parse_url( $src, PHP_URL_HOST );
+		if ( ! is_string( $host ) || '' === $host ) {
+			// Relative / same-document URLs stay allowed.
+			return null;
+		}
+		$host = strtolower( preg_replace( '/^www\./', '', $host ) ?? $host );
+
+		$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
+		$site_host = is_string( $site_host ) ? strtolower( preg_replace( '/^www\./', '', $site_host ) ?? $site_host ) : '';
+		if ( '' !== $site_host && ( $host === $site_host || str_ends_with( $host, '.' . $site_host ) ) ) {
+			return null;
+		}
+
+		$entry = ConsentGate_Catalog::entry_for_src( $src );
+		if ( is_array( $entry ) && 'external_content' !== (string) $entry['key'] ) {
+			$key      = (string) $entry['key'];
+			$category = ConsentGate_Blocker::category_for_key( $key );
+			if ( '' === $category ) {
+				$category = ConsentGate_Blocker::category_for_embed( $src );
+			}
+			if ( '' === $category ) {
+				return null;
+			}
+
+			return array(
+				'category' => $category,
+				'kind'     => $key,
+				'host'     => $host,
+			);
+		}
+
+		if ( ! ConsentGate_Options::get( 'block_external_embeds', true ) ) {
+			return null;
+		}
+
+		$allow = ConsentGate_Options::get( 'external_embed_allowlist', array() );
+		if ( ! is_array( $allow ) ) {
+			$allow = array();
+		}
+		foreach ( $allow as $allowed_host ) {
+			$allowed_host = ConsentGate_Options::sanitize_allowlist_host( (string) $allowed_host );
+			if ( '' === $allowed_host ) {
+				continue;
+			}
+			if ( $host === $allowed_host || str_ends_with( $host, '.' . $allowed_host ) ) {
+				return null;
+			}
+		}
+
+		$category = ConsentGate_Blocker::category_for_key( 'external_content' );
+		if ( '' === $category ) {
+			$category = 'marketing';
+		}
+
+		return array(
+			'category' => $category,
+			'kind'     => 'external_content',
+			'host'     => $host,
+		);
 	}
 
 	/**
@@ -442,6 +517,7 @@ class ConsentGate_Frontend {
 		if ( ! headers_sent() ) {
 			nocache_headers();
 		}
+
 		/*
 		 * Cache plugins (WP Super Cache, W3TC, LiteSpeed, etc.) look for these
 		 * exact constant names. Prefixing them would break the bypass.
