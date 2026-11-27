@@ -414,11 +414,7 @@ class ConsentGate_Frontend {
 			$allow = array();
 		}
 		foreach ( $allow as $allowed_host ) {
-			$allowed_host = ConsentGate_Options::sanitize_allowlist_host( (string) $allowed_host );
-			if ( '' === $allowed_host ) {
-				continue;
-			}
-			if ( $host === $allowed_host || str_ends_with( $host, '.' . $allowed_host ) ) {
+			if ( ConsentGate_Options::host_matches_allowlist_entry( $host, (string) $allowed_host ) ) {
 				return null;
 			}
 		}

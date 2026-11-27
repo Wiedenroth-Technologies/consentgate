@@ -297,8 +297,8 @@ class ConsentGate_Catalog {
 				'with_consent',
 				false,
 				false,
-				array( '/instagram\.com\/embed\.js/i', '/instagram-media/i', '/platform\.instagram\.com/i' ),
-				array( 'www.instagram.com/embed.js', 'instagram.com/embed.js', 'platform.instagram.com' ),
+				array( '/instagram\.com\/(?:[^\/?#]+\/)*embed/i', '/instagram-media/i', '/platform\.instagram\.com/i' ),
+				array( 'www.instagram.com/embed.js', 'instagram.com/embed.js', 'instagram.com/p/', 'instagram.com/reel/', 'platform.instagram.com' ),
 				array(),
 				array()
 			),

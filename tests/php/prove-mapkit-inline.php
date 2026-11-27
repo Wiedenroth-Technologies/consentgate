@@ -41,7 +41,10 @@ function cg_prove_gate_mapkit_inline( string $html, string $category = 'marketin
 			if ( preg_match( '/\btype\s*=\s*([\'"])[^\'"]*json/i', $attrs ) ) {
 				return $matches[0];
 			}
-			if ( ! preg_match( '/\bmapkit\s*\./i', $body ) ) {
+			if ( preg_match( '/window\.__CONSENTGATE__|__CONSENTGATE_BLOCKER__/i', $body ) ) {
+				return $matches[0];
+			}
+			if ( ! preg_match( '/\bmapkit\s*\.\s*(?:init|Map)\b/i', $body ) ) {
 				return $matches[0];
 			}
 
@@ -68,6 +71,8 @@ function cg_assert( bool $cond, string $msg ): void {
 $input = <<<'HTML'
 <html><body>
 <script id="consentgate-boot">ok()</script>
+<script id="consentgate-config">window.__CONSENTGATE__={"config":{"widgetRegistry":[{"inline":"\\bmapkit\\s*\\.\\s*(?:init|Map)\\b","mapTarget":"mapkit.Map"}]}};</script>
+<script id="consentgate-blocker">function x(){ if (/apple-mapkit.com/.test(u)) return "apple_maps"; if (window.Calendly && Calendly.initInlineWidgets) Calendly.initInlineWidgets(); }</script>
 <script src="https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js"></script>
 <script type="application/json">{"mapkit":true}</script>
 <div id="map" style="height:400px"></div>
@@ -82,6 +87,8 @@ HTML;
 $out = cg_prove_gate_mapkit_inline( $input, 'marketing' );
 
 cg_assert( str_contains( $out, 'id="consentgate-boot"' ), 'boot script must stay untouched' );
+cg_assert( preg_match( '/id="consentgate-blocker"[^>]*>function x/i', $out ) === 1, 'blocker must stay untouched' );
+cg_assert( preg_match( '/id="consentgate-config"[^>]*>window\.__CONSENTGATE__/i', $out ) === 1, 'config must stay untouched' );
 cg_assert( str_contains( $out, 'src="https://cdn.apple-mapkit.com/mk/5.x.x/mapkit.js"' ), 'library src script must stay for src-gating' );
 cg_assert( str_contains( $out, 'type="application/json"' ), 'json script must stay untouched' );
 cg_assert( str_contains( $out, 'console.log("unrelated")' ), 'unrelated inline must stay untouched' );

@@ -113,7 +113,7 @@ $snippet = ConsentGate_Policy_Scan::snippet( $policy['missing'] ?? array() );
 					rows="4"
 					placeholder="cdn.example.com&#10;player.example.org"
 				><?php echo esc_textarea( implode( "\n", $allowlist ) ); ?></textarea>
-				<?php $ui->help( __( 'One hostname per line (without https://). These external iframes load without consent.', 'wiedenroth-technologies-consentgate' ) ); ?>
+				<?php $ui->help( __( 'One hostname per line (without https://). Use *.example.com to allow all subdomains. These external iframes load without consent.', 'wiedenroth-technologies-consentgate' ) ); ?>
 			</div>
 		</div>
 	</div>

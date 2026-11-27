@@ -853,7 +853,7 @@ class ConsentGate_Options {
 	}
 
 	/**
-	 * Sanitize one allowlisted embed host (hostname only).
+	 * Sanitize one allowlisted embed host (hostname or *.example.com).
 	 *
 	 * @param string $value Raw host or URL.
 	 */
@@ -863,18 +863,44 @@ class ConsentGate_Options {
 			return '';
 		}
 		if ( str_contains( $value, '://' ) ) {
-			$host = wp_parse_url( $value, PHP_URL_HOST );
+			$host  = wp_parse_url( $value, PHP_URL_HOST );
 			$value = is_string( $host ) ? $host : '';
 		} else {
 			$value = preg_replace( '#/.*$#', '', $value ) ?? $value;
 		}
+
+		$wildcard = str_starts_with( $value, '*.' );
+		if ( $wildcard ) {
+			$value = substr( $value, 2 );
+		}
+
 		$value = preg_replace( '/^www\./', '', $value ) ?? $value;
 		$value = preg_replace( '/[^a-z0-9.-]/', '', $value ) ?? '';
 		if ( '' === $value || ! str_contains( $value, '.' ) ) {
 			return '';
 		}
 
-		return $value;
+		return $wildcard ? '*.' . $value : $value;
+	}
+
+	/**
+	 * Whether a hostname is covered by an allowlist entry (exact, parent, or *.base).
+	 *
+	 * @param string $host  Normalized hostname without leading www.
+	 * @param string $entry Sanitized allowlist entry.
+	 */
+	public static function host_matches_allowlist_entry( string $host, string $entry ): bool {
+		$host  = strtolower( preg_replace( '/^www\./', '', $host ) ?? $host );
+		$entry = self::sanitize_allowlist_host( $entry );
+		if ( '' === $host || '' === $entry ) {
+			return false;
+		}
+		if ( str_starts_with( $entry, '*.' ) ) {
+			$base = substr( $entry, 2 );
+			return $host === $base || str_ends_with( $host, '.' . $base );
+		}
+
+		return $host === $entry || str_ends_with( $host, '.' . $entry );
 	}
 
 	/**

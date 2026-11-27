@@ -228,6 +228,7 @@
 
       function neutralize(node) {
         if (!node || node.nodeName !== "SCRIPT" || node.getAttribute("data-cg-blocked")) return false;
+        if (isOwnConsentGateScript(node)) return false;
         var src = node.getAttribute("src") || "";
         var rule = src ? matchingRule(src) : null;
         if (!rule) return false;
@@ -258,16 +259,32 @@
         }
         if (/youtube(?:-nocookie)?\.com|youtu\.be/i.test(value)) return "youtube";
         if (/player\.vimeo\.com|vimeo\.com\/video/i.test(value)) return "vimeo";
-        if (/instagram\.com\/embed|platform\.instagram\.com/i.test(value)) return "instagram";
-        if (/platform\.twitter\.com|platform\.x\.com|syndication\.twitter\.com/i.test(value)) return "twitter";
-        if (/facebook\.com\/plugins|connect\.facebook\.net\/[^"'\s]*sdk\.js/i.test(value)) return "facebook";
-        if (/tiktok\.com\/embed/i.test(value)) return "tiktok";
+        if (/instagram\.com\/(?:[^/?#]+\/)*embed(?:\/|\?|#|$)|platform\.instagram\.com/i.test(value)) return "instagram";
+        if (/platform\.twitter\.com|platform\.x\.com|syndication\.twitter\.com|cdn\.syndication\.twimg\.com/i.test(value)) return "twitter";
+        if (/facebook\.com\/plugins|connect\.facebook\.net\/[^"'\s]*sdk\.js|\.facebook\.com\/(?:plugins|v\d[\w.]*\/plugins)\//i.test(value)) return "facebook";
+        if (/tiktok\.com\/(?:[^/?#]+\/)*embed/i.test(value)) return "tiktok";
         if (/assets\.pinterest\.com|pinterest\.com\/pin\/create/i.test(value)) return "pinterest";
         if (/linkedin\.com\/embed|platform\.linkedin\.com/i.test(value)) return "linkedin";
         if (/calendly\.com/i.test(value)) return "calendly";
         if (/open\.spotify\.com\/embed|spotify\.com\/embed/i.test(value)) return "spotify";
         if (/w\.soundcloud\.com\/player|soundcloud\.com\/player/i.test(value)) return "soundcloud";
         return "";
+      }
+
+      function isOwnConsentGateScript(node) {
+        if (!node || node.nodeName !== "SCRIPT") return false;
+        var id = String(node.id || node.getAttribute("id") || "").toLowerCase();
+        if (id.indexOf("consentgate") === 0) return true;
+        var src = String(node.getAttribute("src") || node.getAttribute("data-cg-src") || "").toLowerCase();
+        if (!src) return false;
+        if (/consent-gate(?:-[a-z0-9]+)?\.js(?:[?#]|$)/i.test(src)) return true;
+        var base = String(boot.assetBase || "").toLowerCase();
+        if (base) {
+          var pluginRoot = base.replace(/assets\/logos\/?$/, "").replace(/\/$/, "");
+          if (pluginRoot && src.indexOf(pluginRoot) !== -1) return true;
+        }
+        if (/\/wiedenroth-technologies-consentgate\//i.test(src)) return true;
+        return false;
       }
 
       function embedLocale() {
@@ -338,9 +355,12 @@
         return null;
       }
 
-      function widgetForInline(text) {
+      function widgetForInline(text, node) {
+        if (isOwnConsentGateScript(node)) return null;
         var value = String(text || "");
         if (!value) return null;
+        // Config JSON / boot payloads mention library APIs without being widget bootstraps.
+        if (/window\.__CONSENTGATE__|__CONSENTGATE_BLOCKER__|__CONSENTGATE_RESTORED__/i.test(value)) return null;
         var list = widgetRegistry();
         for (var i = 0; i < list.length; i++) {
           var pattern = list[i].inline || "";
@@ -500,11 +520,12 @@
         for (var n = 0; n < list.length; n++) {
           var node = list[n];
           if (!node || node.nodeName !== "SCRIPT") continue;
+          if (isOwnConsentGateScript(node)) continue;
           if (node.getAttribute("src") || node.getAttribute("data-cg-src")) continue;
           if (node.getAttribute("data-cg-blocked")) continue;
           var type = String(node.getAttribute("type") || "").toLowerCase();
           if (type && type.indexOf("json") !== -1) continue;
-          var widget = widgetForInline(node.textContent || "");
+          var widget = widgetForInline(node.textContent || "", node);
           if (!widget) continue;
           var gate = serviceGate(widget.id);
           if (!gate || allowed[gate]) continue;
@@ -523,7 +544,9 @@
         try { re = new RegExp(widget.mapTarget, "g"); } catch (e) { return []; }
         var scripts = document.querySelectorAll("script");
         for (var i = 0; i < scripts.length; i++) {
+          if (isOwnConsentGateScript(scripts[i])) continue;
           var text = scripts[i].textContent || "";
+          if (/window\.__CONSENTGATE__/i.test(text)) continue;
           var match;
           re.lastIndex = 0;
           while ((match = re.exec(text))) {
@@ -622,9 +645,17 @@
       function allowlistedExternal(host) {
         var list = config.externalEmbedAllowlist || [];
         for (var i = 0; i < list.length; i++) {
-          var allowed = String(list[i] || "").replace(/^www\./, "").toLowerCase();
-          if (!allowed) continue;
-          if (host === allowed || host.slice(-(allowed.length + 1)) === "." + allowed) return true;
+          var entry = String(list[i] || "").trim().toLowerCase();
+          if (!entry) continue;
+          if (entry.indexOf("*.") === 0) {
+            var base = entry.slice(2).replace(/^www\./, "");
+            if (!base) continue;
+            if (host === base || host.slice(-(base.length + 1)) === "." + base) return true;
+            continue;
+          }
+          var allowedHost = entry.replace(/^www\./, "");
+          if (!allowedHost) continue;
+          if (host === allowedHost || host.slice(-(allowedHost.length + 1)) === "." + allowedHost) return true;
         }
         return false;
       }
@@ -724,9 +755,10 @@
 
       function deferInlineWidgetNode(node) {
         if (!node || node.nodeName !== "SCRIPT") return false;
+        if (isOwnConsentGateScript(node)) return false;
         if (node.getAttribute("src") || node.getAttribute("data-cg-src")) return false;
         if (node.getAttribute("data-cg-blocked")) return false;
-        var widget = widgetForInline(node.textContent || "");
+        var widget = widgetForInline(node.textContent || "", node);
         if (!widget) return false;
         var gate = serviceGate(widget.id);
         if (!gate || allowed[gate]) return false;
@@ -1020,9 +1052,10 @@
               } else {
                 var mediaSrc = blocked.getAttribute("data-cg-src");
                 if (!mediaSrc) continue;
+                // Unwrap before restoring src so moving the node does not abort the load.
+                if (blocked.nodeName === "IFRAME" || blocked.nodeName === "IMG") unwrapMapsPlaceholder(blocked);
                 nativeSetAttr.call(blocked, "src", mediaSrc);
                 blocked.removeAttribute("data-cg-blocked");
-                if (blocked.nodeName === "IFRAME" || blocked.nodeName === "IMG") unwrapMapsPlaceholder(blocked);
               }
             }
             bypass = false;
@@ -1062,6 +1095,7 @@
           }
 
           function isWidgetLibraryNode(node, src) {
+            if (isOwnConsentGateScript(node)) return false;
             if (widgetForLibrarySrc(src)) return true;
             var kind = node && node.getAttribute && node.getAttribute("data-cg-kind");
             return Boolean(kind && widgetById(kind));
@@ -1070,6 +1104,7 @@
           var scripts = document.querySelectorAll('script[data-cg-blocked], script[type="text/plain"][data-consent-gate]');
           for (i = 0; i < scripts.length; i++) {
             var node = scripts[i];
+            if (isOwnConsentGateScript(node)) continue;
             var cat = node.getAttribute("data-cg-blocked") || node.getAttribute("data-consent-gate") || "";
             if (!allowedCategory(cat)) continue;
             var src = node.getAttribute("data-cg-src") || node.getAttribute("data-src") || node.getAttribute("src") || "";
@@ -1079,7 +1114,7 @@
               continue;
             }
             if (!src && !inline.trim()) continue;
-            var inlineWidget = !src ? widgetForInline(inline) : null;
+            var inlineWidget = !src ? widgetForInline(inline, node) : null;
             if (inlineWidget) {
               widgetInlines.push({ node: node, inline: inline, kind: inlineWidget.id });
               continue;
@@ -1100,7 +1135,8 @@
             if (item.kind !== "script" || !allowedCategory(item.cat)) continue;
             if (item.src && seen[item.src]) continue;
             if (!item.src && !item.text) continue;
-            var pendingInlineWidget = !item.src ? widgetForInline(item.text) : null;
+            if (item.node && isOwnConsentGateScript(item.node)) continue;
+            var pendingInlineWidget = !item.src ? widgetForInline(item.text, item.node || null) : null;
             if (pendingInlineWidget) {
               widgetInlines.push({ node: item.node || null, inline: item.text, kind: pendingInlineWidget.id });
               continue;

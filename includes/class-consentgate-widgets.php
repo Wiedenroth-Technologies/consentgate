@@ -35,7 +35,7 @@ class ConsentGate_Widgets {
 				'id'         => 'apple_maps',
 				'library'    => array( 'apple-mapkit.com', 'cdn.apple-mapkit.com', 'mapkit.js' ),
 				'containers' => array(),
-				'inline'     => '\\bmapkit\\s*\\.',
+				'inline'     => '\\bmapkit\\s*\\.\\s*(?:init|Map)\\b',
 				'mapTarget'  => 'mapkit\\.Map\\s*\\(\\s*["\']([^"\']+)["\']',
 				'reinit'     => '',
 			),
@@ -99,7 +99,7 @@ class ConsentGate_Widgets {
 				'id'         => 'calendly',
 				'library'    => array( 'assets.calendly.com/assets/external/widget.js', 'calendly.com/assets/external/widget.js' ),
 				'containers' => array( '.calendly-inline-widget', '.calendly-badge-widget', '.calendly-inline-widget-container' ),
-				'inline'     => 'Calendly\\.init',
+				'inline'     => '\\bCalendly\\.init(?:InlineWidget|PopupWidget)\\b',
 				'mapTarget'  => '',
 				'reinit'     => 'calendly',
 			),
@@ -167,6 +167,9 @@ class ConsentGate_Widgets {
 	 */
 	public static function widget_for_inline( string $text ): ?array {
 		if ( '' === $text ) {
+			return null;
+		}
+		if ( preg_match( '/window\.__CONSENTGATE__|__CONSENTGATE_BLOCKER__|__CONSENTGATE_RESTORED__/i', $text ) ) {
 			return null;
 		}
 		foreach ( self::registry() as $widget ) {

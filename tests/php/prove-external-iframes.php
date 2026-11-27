@@ -23,12 +23,37 @@ function cg_prove_sanitize_host( string $value ): string {
 	} else {
 		$value = preg_replace( '#/.*$#', '', $value ) ?? $value;
 	}
+
+	$wildcard = str_starts_with( $value, '*.' );
+	if ( $wildcard ) {
+		$value = substr( $value, 2 );
+	}
+
 	$value = preg_replace( '/^www\./', '', $value ) ?? $value;
 	$value = preg_replace( '/[^a-z0-9.-]/', '', $value ) ?? '';
 	if ( '' === $value || ! str_contains( $value, '.' ) ) {
 		return '';
 	}
-	return $value;
+
+	return $wildcard ? '*.' . $value : $value;
+}
+
+/**
+ * @param string $host  Host.
+ * @param string $entry Allowlist entry.
+ */
+function cg_prove_host_matches( string $host, string $entry ): bool {
+	$host  = strtolower( preg_replace( '/^www\./', '', $host ) ?? $host );
+	$entry = cg_prove_sanitize_host( $entry );
+	if ( '' === $host || '' === $entry ) {
+		return false;
+	}
+	if ( str_starts_with( $entry, '*.' ) ) {
+		$base = substr( $entry, 2 );
+		return $host === $base || str_ends_with( $host, '.' . $base );
+	}
+
+	return $host === $entry || str_ends_with( $host, '.' . $entry );
 }
 
 /**
@@ -50,7 +75,7 @@ function cg_prove_iframe_decision( string $src, string $site_host, bool $block_u
 	if ( ! is_string( $host ) || '' === $host ) {
 		return null;
 	}
-	$host = strtolower( preg_replace( '/^www\./', '', $host ) ?? $host );
+	$host      = strtolower( preg_replace( '/^www\./', '', $host ) ?? $host );
 	$site_host = strtolower( preg_replace( '/^www\./', '', $site_host ) ?? $site_host );
 	if ( '' !== $site_host && ( $host === $site_host || str_ends_with( $host, '.' . $site_host ) ) ) {
 		return null;
@@ -70,11 +95,7 @@ function cg_prove_iframe_decision( string $src, string $site_host, bool $block_u
 		return null;
 	}
 	foreach ( $allowlist as $allowed ) {
-		$allowed = cg_prove_sanitize_host( (string) $allowed );
-		if ( '' === $allowed ) {
-			continue;
-		}
-		if ( $host === $allowed || str_ends_with( $host, '.' . $allowed ) ) {
+		if ( cg_prove_host_matches( $host, (string) $allowed ) ) {
 			return null;
 		}
 	}
@@ -94,9 +115,11 @@ function cg_assert( bool $cond, string $msg ): void {
 }
 
 $catalog = array(
-	'youtube.com'          => 'youtube',
-	'maps.googleapis.com'  => 'google_maps',
-	'open.spotify.com'     => 'spotify',
+	'youtube.com'         => 'youtube',
+	'maps.googleapis.com' => 'google_maps',
+	'open.spotify.com'    => 'spotify',
+	'instagram.com/p/'    => 'instagram',
+	'platform.twitter.com'=> 'twitter',
 );
 
 cg_assert( null === cg_prove_iframe_decision( '/local-frame', 'example.com', true, array(), $catalog ), 'relative iframe stays open' );
@@ -106,6 +129,9 @@ cg_assert( null === cg_prove_iframe_decision( 'https://cdn.example.com/x', 'exam
 $yt = cg_prove_iframe_decision( 'https://www.youtube.com/embed/abc', 'example.com', true, array(), $catalog );
 cg_assert( is_array( $yt ) && 'youtube' === $yt['kind'], 'youtube maps to catalog' );
 
+$ig = cg_prove_iframe_decision( 'https://www.instagram.com/p/demo/embed/captioned/', 'example.com', true, array(), $catalog );
+cg_assert( is_array( $ig ) && 'instagram' === $ig['kind'], 'instagram post embed maps to catalog' );
+
 $unknown = cg_prove_iframe_decision( 'https://weird-tracker.example/embed', 'example.com', true, array(), $catalog );
 cg_assert( is_array( $unknown ) && 'external_content' === $unknown['kind'], 'unknown host blocked' );
 cg_assert( 'weird-tracker.example' === $unknown['host'], 'host recorded' );
@@ -113,10 +139,18 @@ cg_assert( 'weird-tracker.example' === $unknown['host'], 'host recorded' );
 $allowed = cg_prove_iframe_decision( 'https://cdn.partner.com/player', 'example.com', true, array( 'cdn.partner.com' ), $catalog );
 cg_assert( null === $allowed, 'allowlisted host stays open' );
 
+$wild = cg_prove_iframe_decision( 'https://media.cdn-partner.test/player', 'example.com', true, array( '*.cdn-partner.test' ), $catalog );
+cg_assert( null === $wild, 'wildcard allowlist matches subdomain' );
+
+$wild_base = cg_prove_iframe_decision( 'https://cdn-partner.test/player', 'example.com', true, array( '*.cdn-partner.test' ), $catalog );
+cg_assert( null === $wild_base, 'wildcard allowlist matches apex' );
+
 $disabled = cg_prove_iframe_decision( 'https://weird-tracker.example/embed', 'example.com', false, array(), $catalog );
 cg_assert( null === $disabled, 'toggle off disables catch-all' );
 
 cg_assert( 'cdn.partner.com' === cg_prove_sanitize_host( 'https://www.cdn.partner.com/path' ), 'sanitize host from URL' );
+cg_assert( '*.cdn-partner.test' === cg_prove_sanitize_host( '*.cdn-partner.test' ), 'sanitize keeps wildcard' );
+cg_assert( '*.cdn-partner.test' === cg_prove_sanitize_host( '*.www.cdn-partner.test' ), 'sanitize wildcard strips www' );
 cg_assert( '' === cg_prove_sanitize_host( 'localhost' ), 'reject host without dot' );
 
 echo "PASS\n";
