@@ -569,8 +569,6 @@ button#consentgate-reopen.cg-reopen:hover {
   background: #e8eaed;
   overflow: hidden;
   box-sizing: border-box;
-  container-type: size;
-  container-name: cg-embed;
 }
 
 .cg-embed-wrap--widget {
@@ -756,156 +754,12 @@ blockquote.instagram-media:not([data-cg-blocked]) iframe:not([data-cg-blocked]) 
   white-space: normal !important;
 }
 
-/* Compact / tight / minimal tiers via container queries + data-cg-fit fallback. */
-@container cg-embed (max-width: 319px) {
-  .cg-embed-overlay {
-    gap: 6px;
-    padding: 12px 10px;
-  }
-
-  .cg-embed-logo {
-    width: 22px;
-    height: 22px;
-    margin: 0;
-  }
-
-  .cg-embed-title {
-    font-size: 13px;
-  }
-
-  .cg-embed-body {
-    display: none;
-  }
-
-  .cg-embed-open {
-    margin-top: 2px;
-    padding: 7px 10px;
-    font-size: 12px;
-  }
-}
-
-@container cg-embed (max-width: 219px) {
-  .cg-embed-overlay {
-    gap: 4px;
-    padding: 8px 6px;
-  }
-
-  .cg-embed-logo {
-    width: 18px;
-    height: 18px;
-  }
-
-  .cg-embed-title-full {
-    display: none;
-  }
-
-  .cg-embed-title-short {
-    display: inline;
-  }
-
-  .cg-embed-title {
-    font-size: 12px;
-  }
-
-  .cg-embed-open {
-    padding: 6px 8px;
-    font-size: 11px;
-    border-radius: 6px;
-  }
-}
-
-@container cg-embed (max-width: 159px) {
-  .cg-embed-logo,
-  .cg-embed-title,
-  .cg-embed-body,
-  .cg-embed-open-label {
-    display: none;
-  }
-
-  .cg-embed-overlay {
-    gap: 0;
-    padding: 4px;
-  }
-
-  .cg-embed-open {
-    width: 40px;
-    height: 40px;
-    min-width: 40px;
-    min-height: 40px;
-    padding: 0;
-    margin: 0;
-    border-radius: 999px;
-  }
-
-  .cg-embed-open-icon {
-    display: inline-flex;
-  }
-}
-
-@container cg-embed (max-height: 139px) {
-  .cg-embed-overlay {
-    gap: 4px;
-    padding: 6px 8px;
-  }
-
-  .cg-embed-body {
-    display: none;
-  }
-
-  .cg-embed-logo {
-    width: 18px;
-    height: 18px;
-    margin: 0;
-  }
-
-  .cg-embed-title-full {
-    display: none;
-  }
-
-  .cg-embed-title-short {
-    display: inline;
-  }
-
-  .cg-embed-title {
-    font-size: 12px;
-  }
-
-  .cg-embed-open {
-    margin-top: 0;
-    padding: 6px 8px;
-    font-size: 11px;
-  }
-}
-
-@container cg-embed (max-height: 99px) {
-  .cg-embed-logo,
-  .cg-embed-title,
-  .cg-embed-body,
-  .cg-embed-open-label {
-    display: none;
-  }
-
-  .cg-embed-overlay {
-    gap: 0;
-    padding: 2px;
-  }
-
-  .cg-embed-open {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    min-height: 36px;
-    padding: 0;
-    margin: 0;
-    border-radius: 999px;
-  }
-
-  .cg-embed-open-icon {
-    display: inline-flex;
-  }
-}
-
-/* JS ResizeObserver fallback when container queries are unavailable. */
+/*
+ * Fit tiers are driven only by data-cg-fit (ResizeObserver / getBoundingClientRect).
+ * Do not use container-type:size height queries: wraps sized via min-height alone
+ * report a 0px container block size, which falsely matched max-height icon rules.
+ * No-JS / missing attribute = roomy (full logo + title + body + wrapping button).
+ */
 .cg-embed-wrap[data-cg-fit="compact"] .cg-embed-overlay {
   gap: 6px;
   padding: 12px 10px;
